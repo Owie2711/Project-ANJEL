@@ -1,18 +1,21 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 import customtkinter as ctk
 import subprocess
 import threading
+import re
+import json
 import os
 
-# Import modular components
-from ui_components import setup_theme, UITheme
-from ui_layouts import MainLayout
-from device_manager import DeviceManager, DeviceConnectionListener, DeviceValidator
-from process_manager import ProcessManager, ProcessEventListener, ScrcpyConfig
-from config_manager import AutoSaveConfigManager
+# Optional import for process checking
+try:
+    import psutil  # type: ignore
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    psutil = None  # type: ignore
+    PSUTIL_AVAILABLE = False
 
-class ScrcpyGUI(ProcessEventListener, DeviceConnectionListener):
+class ScrcpyGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Scrcpy Controller")
@@ -20,30 +23,34 @@ class ScrcpyGUI(ProcessEventListener, DeviceConnectionListener):
         self.root.resizable(True, True)
         self.root.minsize(400, 600)
         
-        # Setup theme
-        setup_theme()
-        self.root.configure(bg=UITheme.BACKGROUND)
+        # Configure CustomTkinter theme
+        ctk.set_appearance_mode("light")  # "light" or "dark"
+        ctk.set_default_color_theme("blue")  # "blue", "green", "dark-blue"
         
-        # Initialize managers
-        self.config_manager = AutoSaveConfigManager()
-        self.device_manager = DeviceManager()
-        self.process_manager = ProcessManager(lambda device_id: self.device_manager.is_device_connected(device_id))
+        # Set window background
+        self.root.configure(bg='#f8fafc')
         
-        # Add listeners
-        self.device_manager.add_listener(self)
-        self.process_manager.add_listener(self)
-        
-        # State variables
+        # Variables
+        self.selected_device = tk.StringVar()
+        self.bitrate = tk.StringVar(value="20")
+        self.framerate = tk.StringVar(value="60")
+        self.fullscreen_enabled = tk.BooleanVar(value=False)
+        self.auto_reconnect_enabled = tk.BooleanVar(value=False)
+        self.audio_source = tk.StringVar(value="playback")
         self.is_running = False
+        self.scrcpy_process = None
+        self.last_connected_device = None
+        self.reconnect_attempts = 0
+        # Removed max_reconnect_attempts - will try indefinitely
         
-        # Setup UI and load configuration
         self.setup_ui()
+        self.refresh_devices()
         
-        # Load configuration after setup
+        # Start automatic device refresh
+        self.start_auto_refresh()
+        
+        # Load configuration after UI is fully initialized
         self.root.after(100, self.load_config)
-        
-        # Start device monitoring
-        self.device_manager.start_monitoring()
     
     def setup_ui(self):
         # Configure root grid
@@ -505,11 +512,460 @@ class ScrcpyGUI(ProcessEventListener, DeviceConnectionListener):
                         self.scrcpy_process.wait(timeout=2)
                     except subprocess.TimeoutExpired:
                         print("Warning: Process may still be running")
-    def stop_scrcpy(self):
-        """Stop the running scrcpy process"""
+                        return False
+            
+            self.scrcpy_process = None
+            return True
+            
+        except Exception as e:
+            print(f"Error during process cleanup: {e}")
+            self.scrcpy_process = None
+            return False
+    
+    def try_restart_mirroring(self):
+        """Try to restart mirroring with the same settings"""
+        # Refresh devices first
+        self.refresh_devices()
+        
+        # Wait a moment for refresh to complete, then try to start
+        self.root.after(1000, self.restart_mirroring_if_device_available)
+    
+    def restart_mirroring_if_device_available(self):
+        """Restart mirroring if the device is available again"""
+        if not self.auto_reconnect_enabled.get():
+            return
+            
+        current_devices = []
+        try:
+            result = subprocess.run(['adb', 'devices'], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                for line in lines[1:]:
+                    if line.strip() and '\tdevice' in line:
+                        device_id = line.split('\t')[0]
+                        current_devices.append(device_id)
+        except Exception as e:
+            print(f"Error checking devices during reconnect: {str(e)}")
+            # Schedule another attempt
+            self.root.after(3000, self.try_restart_mirroring)
+            return
+        
+        if self.last_connected_device and self.last_connected_device in current_devices:
+            print(f"Device {self.last_connected_device} reconnected. Checking for existing processes...")
+            
+            # CRITICAL: Check if there are already scrcpy processes running
+            if self.check_existing_scrcpy_processes():
+                print("WARNING: Existing scrcpy processes detected! Skipping restart to prevent duplicates.")
+                # Reset reconnection state since device is available
+                self.reconnect_attempts = 0
+                try:
+                    self.reconnect_status_label.configure(text="Device reconnected (existing session detected)", text_color="#059669")
+                    self.root.after(5000, lambda: self.reconnect_status_label.configure(text=""))
+                except tk.TclError:
+                    pass
+                return
+            
+            # Check if our own process is still running
+            if self.scrcpy_process and self.scrcpy_process.poll() is None:
+                print("WARNING: Our own scrcpy process is still running! Skipping restart.")
+                self.reconnect_attempts = 0
+                try:
+                    self.reconnect_status_label.configure(text="Device reconnected (session still active)", text_color="#059669")
+                    self.root.after(5000, lambda: self.reconnect_status_label.configure(text=""))
+                except tk.TclError:
+                    pass
+                return
+            
+            print(f"No existing processes found. Safe to restart mirroring for device: {self.last_connected_device}")
+            
+            # Update device selection to ensure it's properly set
+            self.selected_device.set(self.last_connected_device)
+            self.device_combo.set(self.last_connected_device)
+            
+            # Update device status
+            try:
+                self.device_status_label.configure(
+                    text=f"Device {self.last_connected_device} reconnected", 
+                    text_color="#059669"
+                )
+            except tk.TclError:
+                pass  # UI might be destroyed
+            
+            self.reconnect_attempts = 0
+            
+            # Clear reconnection status
+            try:
+                self.reconnect_status_label.configure(text="Device reconnected successfully!", text_color="#059669")
+                # Clear status after 3 seconds
+                self.root.after(3000, lambda: self.reconnect_status_label.configure(text=""))
+            except tk.TclError:
+                pass  # UI might be destroyed
+            
+            # Start mirroring again with the same settings
+            try:
+                # Ensure comprehensive cleanup before restart
+                self.cleanup_process(timeout=5)
+                
+                # Force is_running to False temporarily to allow start_scrcpy to proceed
+                self.is_running = False
+                
+                # Additional safety check right before starting
+                if self.check_existing_scrcpy_processes():
+                    print("ABORT: Scrcpy processes detected just before restart!")
+                    return
+                
+                # Start mirroring with stored device
+                self.start_scrcpy()
+                
+                print(f"Successfully restarted mirroring for device: {self.last_connected_device}")
+            except Exception as e:
+                print(f"Error restarting mirroring: {str(e)}")
+                # Schedule another reconnection attempt
+                self.root.after(3000, self.try_restart_mirroring)
+        else:
+            print(f"Device {self.last_connected_device} not yet available. Will retry indefinitely...")
+            # Continue trying indefinitely since we removed max attempts limit
+            self.root.after(3000, self.try_restart_mirroring)
+    
+    def toggle_mirroring(self):
+        """Toggle between start and stop mirroring"""
         if self.is_running:
-            self.process_manager.stop_process()
-            self.is_running = False
+            self.stop_scrcpy()
+        else:
+            self.start_scrcpy()
+    
+    def validate_bitrate(self, bitrate):
+        """Validate bitrate format - should be a positive number"""
+        try:
+            if not bitrate or not bitrate.strip():
+                return False, "Bitrate cannot be empty"
+            
+            value = float(bitrate.strip())
+            if value <= 0:
+                return False, "Bitrate must be greater than 0"
+            if value > 1000:  # Reasonable upper limit
+                return False, "Bitrate too high (max 1000 Mbps)"
+            
+            return True, "Valid"
+        except ValueError:
+            return False, "Bitrate must be a valid number"
+    
+    def validate_framerate(self, framerate):
+        """Validate framerate format - should be a positive integer"""
+        try:
+            if not framerate or not framerate.strip():
+                return False, "Framerate cannot be empty"
+            
+            value = int(framerate.strip())
+            if value <= 0:
+                return False, "Framerate must be greater than 0"
+            if value > 240:  # Reasonable upper limit
+                return False, "Framerate too high (max 240 FPS)"
+            
+            return True, "Valid"
+        except ValueError:
+            return False, "Framerate must be a valid integer"
+    
+    def start_scrcpy(self):
+        """Start scrcpy with selected device and settings"""
+        if self.is_running:
+            print("Scrcpy is already running. Skipping start request.")
+            return
+        
+        # CRITICAL: Check for existing system-wide scrcpy processes first
+        if self.check_existing_scrcpy_processes():
+            print("WARNING: Existing scrcpy processes detected on system. Cannot start new session.")
+            messagebox.showwarning("Warning", "Another scrcpy session is already running. Please close it first to avoid conflicts.")
+            return
+        
+        # Ensure no existing process is running in our app
+        if self.scrcpy_process:
+            print("Existing scrcpy process found in app. Terminating before starting new one.")
+            self.cleanup_process(timeout=3)
+        
+        device = self.device_combo.get()
+        bitrate = self.bitrate.get().strip()
+        framerate = self.framerate.get().strip()
+        
+        # Validate device selection
+        if not device or device == "Connected Devices:":
+            messagebox.showerror("Error", "Please select a device first.")
+            return
+        
+        # Validate device is still connected before starting
+        try:
+            result = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                current_devices = []
+                lines = result.stdout.strip().split('\n')
+                for line in lines[1:]:
+                    if line.strip() and '\tdevice' in line:
+                        current_devices.append(line.split('\t')[0])
+                
+                if device not in current_devices:
+                    messagebox.showerror("Error", f"Device {device} is no longer connected. Please refresh and select an available device.")
+                    self.refresh_devices()
+                    return
+            else:
+                messagebox.showerror("Error", "Could not verify device connection. Please check ADB.")
+                return
+        except Exception as e:
+            print(f"Warning: Could not verify device connection: {e}")
+            # Continue anyway - connection check is not critical
+        
+        # Validate bitrate input with detailed error message
+        bitrate_valid, bitrate_error = self.validate_bitrate(bitrate)
+        if not bitrate_valid:
+            messagebox.showerror("Error", f"Bitrate error: {bitrate_error}")
+            return
+        
+        # Validate framerate input with detailed error message
+        framerate_valid, framerate_error = self.validate_framerate(framerate)
+        if not framerate_valid:
+            messagebox.showerror("Error", f"Framerate error: {framerate_error}")
+            return
+        
+        try:
+            # Build scrcpy command - add 'M' suffix to bitrate
+            bitrate_with_suffix = f"{bitrate}M"
+            cmd = ['scrcpy', '-s', device, '-b', bitrate_with_suffix]
+            
+            # Add framerate setting
+            cmd.extend(['--max-fps', framerate])
+            
+            # Add fullscreen if enabled
+            if self.fullscreen_enabled.get():
+                cmd.extend(['-f'])
+            
+            # Add audio settings
+            audio_source = self.audio_combo.get()
+            if audio_source == "Audio Playback":
+                cmd.extend(['--audio-source=playback'])
+            elif audio_source == "Microphone":
+                cmd.extend(['--audio-source=mic-voice-communication'])
+            elif audio_source == "No audio":
+                cmd.extend(['--no-audio'])
+            
+            print("Starting scrcpy...")
+            self.toggle_btn.configure(text="⏹ Stop Mirroring", 
+                                     fg_color="#ff4444", 
+                                     hover_color="#ff6666",
+                                     text_color="#ffffff")
+            
+            # Store the connected device for auto-reconnect
+            self.last_connected_device = device
+            self.reconnect_attempts = 0
+            
+            # Show auto-reconnect status if enabled
+            if self.auto_reconnect_enabled.get():
+                print(f"Auto-reconnect enabled for device: {device} (unlimited attempts)")
+            
+            # Start scrcpy in a separate thread
+            def run_scrcpy():
+                try:
+                    # Final safety check for existing processes
+                    if self.check_existing_scrcpy_processes():
+                        print("CRITICAL: Existing scrcpy processes detected in thread! Aborting start.")
+                        self.root.after(0, lambda: messagebox.showwarning("Warning", "Another scrcpy session was detected. Start aborted."))
+                        return
+                    
+                    # Double-check that no process is already running in our app
+                    if self.scrcpy_process:
+                        print("Warning: Existing process detected in thread. Cleaning up...")
+                        self.cleanup_process(timeout=3)
+                    
+                    # Final check before creating process
+                    if self.scrcpy_process and self.scrcpy_process.poll() is None:
+                        print("ERROR: Process still running after cleanup! Aborting.")
+                        return
+                    
+                    # Create new process
+                    print(f"Creating new scrcpy process with command: {' '.join(cmd)}")
+                    self.scrcpy_process = subprocess.Popen(cmd)
+                    self.is_running = True
+                    self.root.after(0, lambda: print(f"Mirroring Active • Device: {device} • {bitrate}M • {framerate}FPS"))
+                    
+                    # Wait for process to complete
+                    exit_code = self.scrcpy_process.wait()
+                    print(f"Scrcpy process ended with exit code: {exit_code}")
+                    
+                except Exception as e:
+                    print(f"Scrcpy process error: {str(e)}")
+                    if self.auto_reconnect_enabled.get() and self.last_connected_device and self.is_running:
+                        print("Auto-reconnect enabled, attempting reconnection...")
+                        self.scrcpy_process = None
+                        self.root.after(0, self.attempt_reconnect)
+                        return  # Don't execute finally block
+                    else:
+                        self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to start scrcpy: {str(e)}"))
+                        
+                finally:
+                    # Handle process completion
+                    self.scrcpy_process = None
+                    
+                    # Check if we should attempt auto-reconnect
+                    if (self.auto_reconnect_enabled.get() and 
+                        self.last_connected_device and 
+                        self.is_running):
+                        print("Scrcpy process ended. Auto-reconnect enabled, attempting reconnection...")
+                        self.root.after(0, self.attempt_reconnect)
+                    else:
+                        # Normal shutdown - reset UI
+                        self.is_running = False
+                        self.root.after(0, self.reset_ui)
+            
+            thread = threading.Thread(target=run_scrcpy, daemon=True)
+            thread.start()
+            
+        except FileNotFoundError:
+            messagebox.showerror("Error", "Scrcpy not found. Please install scrcpy and add it to PATH.")
+            self.reset_ui()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to start scrcpy: {str(e)}")
+            self.reset_ui()
+    
+    def stop_scrcpy(self):
+        """Stop the running scrcpy process and disable auto-reconnect"""
+        print("User manually stopped screen mirroring. Disabling auto-reconnect.")
+        
+        # Stop auto-reconnect by clearing the device reference
+        self.last_connected_device = None
+        self.reconnect_attempts = 0
+        
+        # Use the improved cleanup method
+        if self.scrcpy_process and self.is_running:
+            print("Stopping scrcpy...")
+            self.cleanup_process(timeout=5)
+        
+        # Clear all status displays
+        try:
+            self.reconnect_status_label.configure(text="")
+        except tk.TclError:
+            # UI might be destroyed
+            pass
+        
+        self.reset_ui()
+    
+    def reset_ui(self):
+        """Reset UI to initial state"""
+        self.is_running = False
+        self.scrcpy_process = None
+        # Clear auto-reconnect state when UI is reset
+        if not self.auto_reconnect_enabled.get():
+            self.last_connected_device = None
+            self.reconnect_attempts = 0
+        
+        try:
+            self.toggle_btn.configure(text="▶ Start Mirroring",
+                                     fg_color="#ffffff",
+                                     hover_color="#f0f0f0",
+                                     text_color="#000000")
+        except tk.TclError:
+            pass  # UI might be destroyed
+        
+        print("Ready to start mirroring")
+
+    def get_config_path(self):
+        """Get the full path for config.json in the application directory"""
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(app_dir, "config.json")
+
+    def save_config(self):
+        """Save current settings to config.json silently"""
+        try:
+            # Map display values back to technical values for saving
+            audio_reverse_mapping = {
+                "Audio Playback": "Audio Playback",
+                "Microphone": "Microphone", 
+                "No audio": "No audio"
+            }
+            
+            audio_value = self.audio_combo.get()
+            saved_audio_value = audio_reverse_mapping.get(audio_value, audio_value)
+            
+            config = {
+                "bitrate": self.bitrate.get(),
+                "framerate": self.framerate.get(),
+                "fullscreen_enabled": self.fullscreen_enabled.get(),
+                "auto_reconnect_enabled": self.auto_reconnect_enabled.get(),
+                "audio_source": saved_audio_value
+            }
+            
+            config_path = self.get_config_path()
+            with open(config_path, "w") as f:
+                json.dump(config, f, indent=4)
+            
+        except Exception as e:
+            pass  # Silent operation for auto-save
+
+    def auto_save_config(self, *args):
+        """Automatically save config when settings change"""
+        self.save_config()
+
+    def on_audio_combo_change(self, choice):
+        """Handle audio combo selection change"""
+        self.save_config()
+
+    def load_config(self):
+        """Load settings from config.json"""
+        try:
+            config_path = self.get_config_path()
+            
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                
+                # Apply loaded settings with validation
+                if "bitrate" in config:
+                    bitrate_valid, _ = self.validate_bitrate(str(config["bitrate"]))
+                    if bitrate_valid:
+                        self.bitrate.set(config["bitrate"])
+                    else:
+                        print(f"Invalid bitrate in config: {config['bitrate']}, using default")
+                
+                if "framerate" in config:
+                    framerate_valid, _ = self.validate_framerate(str(config["framerate"]))
+                    if framerate_valid:
+                        self.framerate.set(config["framerate"])
+                    else:
+                        print(f"Invalid framerate in config: {config['framerate']}, using default")
+                
+                if "fullscreen_enabled" in config and isinstance(config["fullscreen_enabled"], bool):
+                    self.fullscreen_enabled.set(config["fullscreen_enabled"])
+                
+                if "auto_reconnect_enabled" in config and isinstance(config["auto_reconnect_enabled"], bool):
+                    self.auto_reconnect_enabled.set(config["auto_reconnect_enabled"])
+                
+                if "audio_source" in config:
+                    try:
+                        # Map old config values to new display values
+                        audio_mapping = {
+                            "Audio Playback": "Audio Playback",
+                            "Microphone": "Microphone",
+                            "No audio": "No audio"
+                        }
+                        old_value = config["audio_source"]
+                        new_value = audio_mapping.get(old_value, "Audio Playback")
+                        self.audio_combo.set(new_value)
+                    except Exception as e:
+                        print(f"Error setting audio source from config: {e}")
+                        self.audio_combo.set("Audio Playback")
+                
+                if hasattr(self, 'toggle_btn'):
+                    print("Configuration loaded successfully")
+            else:
+                if hasattr(self, 'toggle_btn'):
+                    print("No saved configuration found")
+                
+        except json.JSONDecodeError as e:
+            print(f"Invalid JSON in config file: {e}")
+            if hasattr(self, 'toggle_btn'):
+                print("Error loading configuration - invalid JSON format")
+        except Exception as e:
+            print(f"Error loading configuration: {e}")
+            if hasattr(self, 'toggle_btn'):
+                print("Error loading configuration")
 
 def main():
     root = ctk.CTk()
@@ -519,10 +975,8 @@ def main():
     def on_closing():
         if app.is_running:
             app.stop_scrcpy()
-        # Stop device monitoring
-        app.device_manager.stop_monitoring()
-        # Auto-save config on exit
-        app.config_manager.save_config(silent=True)
+        # Auto-save config on exit (silent)
+        app.save_config()
         root.destroy()
     
     root.protocol("WM_DELETE_WINDOW", on_closing)

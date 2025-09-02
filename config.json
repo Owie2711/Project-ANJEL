@@ -1,7 +1,15 @@
 {
     "bitrate": "20",
     "framerate": "60",
-    "fullscreen_enabled": false,
-    "auto_reconnect_enabled": true,
-    "audio_source": "Audio Playback"
+    "fullscreen_enabled": 0,
+    "audio_source": "Audio Playback",
+    "auto_reconnect_enabled": 1,
+    "reconnect_max_attempts": 0,
+    "reconnect_delay": 3.0,
+    "window_width": 400,
+    "window_height": 600,
+    "theme": "light",
+    "last_selected_device": "LRZLFUPBMVO7Q88L",
+    "device_refresh_interval": 3.0,
+    "additional_scrcpy_args": []
 }
