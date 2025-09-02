@@ -796,7 +796,7 @@ namespace ScrcpyController.UI
             }
         }
 
-        private async Task StopScrcpyAsync()
+        private async Task StopScrcpyAsync(bool isFormClosing = false)
         {
             try
             {
@@ -809,29 +809,48 @@ namespace ScrcpyController.UI
                 if (wasInAutoReconnect)
                 {
                     _isRunning = false;
+                    if (!isFormClosing) // Only update UI if not closing the form
+                    {
+                        _startStopButton.Text = "Start Mirror";
+                        _startStopButton.BackColor = Color.FromArgb(37, 99, 235);
+                        _statusLabel.Text = "Auto-reconnect stopped by user";
+                        _statusLabel.ForeColor = Color.Black;
+                        
+                        // Clear status message after 3 seconds
+                        var timer = new System.Windows.Forms.Timer { Interval = 3000 };
+                        timer.Tick += (s, e) =>
+                        {
+                            timer.Stop();
+                            timer.Dispose();
+                            if (!_isRunning)
+                            {
+                                _statusLabel.Text = "Ready to start mirroring";
+                            }
+                        };
+                        timer.Start();
+                    }
+                }
+                else if (!isFormClosing) // Only update UI if not closing the form
+                {
+                    _isRunning = false;
                     _startStopButton.Text = "Start Mirror";
                     _startStopButton.BackColor = Color.FromArgb(37, 99, 235);
-                    _statusLabel.Text = "Auto-reconnect stopped by user";
+                    _statusLabel.Text = "Ready to start mirroring";
                     _statusLabel.ForeColor = Color.Black;
-                    
-                    // Clear status message after 3 seconds
-                    var timer = new System.Windows.Forms.Timer { Interval = 3000 };
-                    timer.Tick += (s, e) =>
-                    {
-                        timer.Stop();
-                        timer.Dispose();
-                        if (!_isRunning)
-                        {
-                            _statusLabel.Text = "Ready to start mirroring";
-                        }
-                    };
-                    timer.Start();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error stopping mirroring: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!isFormClosing) // Only show message box if not closing the form
+                {
+                    MessageBox.Show($"Error stopping mirroring: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
+        }
+
+        private async Task StopScrcpyAsync()
+        {
+            await StopScrcpyAsync(false);
         }
 
         #endregion
@@ -1006,13 +1025,17 @@ namespace ScrcpyController.UI
 
         #region Form Events
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        protected override async void OnFormClosing(FormClosingEventArgs e)
         {
             try
             {
                 if (_isRunning)
                 {
-                    _processManager?.StopProcess();
+                    // Cancel the closing event temporarily to allow async operation
+                    e.Cancel = true;
+                    
+                    // Run the stop process asynchronously
+                    await StopScrcpyAsync(true); // Pass true to indicate form is closing
                 }
                 
                 // Properly unsubscribe from all events to prevent memory leaks
@@ -1039,14 +1062,16 @@ namespace ScrcpyController.UI
                 
                 // Dispose of resources
                 Dispose(true);
+                
+                // Now allow the form to close
+                e.Cancel = false;
+                base.OnFormClosing(e);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error during form closing: {ex.Message}");
                 // Don't prevent closing even if there's an error
-            }
-            finally
-            {
+                e.Cancel = false;
                 base.OnFormClosing(e);
             }
         }
