@@ -50,11 +50,11 @@ class DeviceSelectionSection(BaseCard, DeviceConnectionListener):
             device_row,
             variable=self.selected_device_var,
             state="readonly", 
-            width=400, 
-            height=30,
+            width=340, 
+            height=28,
             values=[]  # Start with empty values
         )
-        self.device_combo.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        self.device_combo.grid(row=0, column=0, sticky="ew", padx=(0, 6))
         # Initially empty - will be populated when devices are found
         
         # Refresh button
@@ -62,14 +62,14 @@ class DeviceSelectionSection(BaseCard, DeviceConnectionListener):
             device_row, 
             text="Refresh", 
             command=self._on_refresh_clicked,
-            width=70, 
-            height=30
+            width=65, 
+            height=28
         )
         self.refresh_btn.grid(row=0, column=1)
         
         # Device status
         self.device_status = StatusLabel(device_container, text="No devices connected")
-        self.device_status.grid(row=1, column=0, sticky="w", pady=(2, 0))
+        self.device_status.grid(row=1, column=0, sticky="w", pady=(3, 0))
         # Set initial status to error (red)
         self.device_status.update_status("No devices connected", "error")
         
@@ -135,15 +135,33 @@ class DeviceSelectionSection(BaseCard, DeviceConnectionListener):
     
     def update_device_status(self, message: str, status_type: str = "info"):
         """Update device status message"""
-        self.device_status.update_status(message, status_type)
+        try:
+            self.device_status.update_status(message, status_type)
+        except tk.TclError:
+            # UI might be destroyed during shutdown
+            pass
+        except Exception as e:
+            print(f"Error updating device status: {e}")
     
     def update_reconnect_status(self, message: str, status_type: str = "warning"):
         """Update reconnection status message"""
-        self.reconnect_status.update_status(message, status_type)
+        try:
+            self.reconnect_status.update_status(message, status_type)
+        except tk.TclError:
+            # UI might be destroyed during shutdown
+            pass
+        except Exception as e:
+            print(f"Error updating reconnect status: {e}")
     
     def clear_reconnect_status(self):
         """Clear reconnection status"""
-        self.reconnect_status.configure(text="")
+        try:
+            self.reconnect_status.configure(text="")
+        except tk.TclError:
+            # UI might be destroyed during shutdown
+            pass
+        except Exception as e:
+            print(f"Error clearing reconnect status: {e}")
     
     # DeviceConnectionListener implementation
     def on_devices_changed(self, devices: List[str]):
@@ -198,24 +216,24 @@ class VideoSettingsSection(BaseCard):
             content_frame, 
             "Bitrate (Mbps)", 
             "entry",
-            width=130, 
-            height=30
+            width=120, 
+            height=28
         )
-        self.bitrate_input.grid_vertical(0, 0, pady=(0, 8), padx=UITheme.PADDING_LARGE)
+        self.bitrate_input.grid_vertical(0, 0, pady=(0, 6), padx=UITheme.PADDING_LARGE)
         
         # Framerate input
         self.framerate_input = LabeledInput(
             content_frame, 
             "Max Framerate (FPS)", 
             "entry",
-            width=130, 
-            height=30
+            width=120, 
+            height=28
         )
-        self.framerate_input.grid_vertical(0, 1, pady=(0, 8), padx=UITheme.PADDING_LARGE)
+        self.framerate_input.grid_vertical(0, 1, pady=(0, 6), padx=UITheme.PADDING_LARGE)
         
         # Checkboxes container
         checkbox_container = ctk.CTkFrame(content_frame, fg_color="transparent")
-        checkbox_container.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 8), padx=UITheme.PADDING_LARGE)
+        checkbox_container.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 6), padx=UITheme.PADDING_LARGE)
         checkbox_container.grid_columnconfigure(0, weight=1)
         checkbox_container.grid_columnconfigure(1, weight=1)
         
@@ -225,7 +243,7 @@ class VideoSettingsSection(BaseCard):
         
         # Auto-reconnect checkbox
         self.auto_reconnect_check = StyledCheckBox(checkbox_container, "Auto Reconnect")
-        self.auto_reconnect_check.grid(row=0, column=1, sticky="", padx=(8, 0))
+        self.auto_reconnect_check.grid(row=0, column=1, sticky="", padx=(6, 0))
     
     def _setup_bindings(self):
         """Setup event bindings for auto-save"""
@@ -267,13 +285,13 @@ class VideoSettingsSection(BaseCard):
     
     def load_from_config(self):
         """Load settings from config manager"""
-        # Load bitrate
-        if hasattr(self.bitrate_input.widget, 'delete') and hasattr(self.bitrate_input.widget, 'insert'):
+        # Load bitrate - check if widget is an entry
+        if isinstance(self.bitrate_input.widget, StyledEntry):
             self.bitrate_input.widget.delete(0, tk.END)
             self.bitrate_input.widget.insert(0, self.config_manager.get('bitrate', '20'))
         
-        # Load framerate  
-        if hasattr(self.framerate_input.widget, 'delete') and hasattr(self.framerate_input.widget, 'insert'):
+        # Load framerate - check if widget is an entry  
+        if isinstance(self.framerate_input.widget, StyledEntry):
             self.framerate_input.widget.delete(0, tk.END)
             self.framerate_input.widget.insert(0, str(self.config_manager.get('framerate', 60)))
         
@@ -327,7 +345,7 @@ class AudioSettingsSection(BaseCard):
             font=ctk.CTkFont(family=UITheme.FONT_FAMILY, size=UITheme.FONT_SIZE_NORMAL),
             text_color=UITheme.TEXT_PRIMARY
         )
-        audio_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 5), padx=UITheme.PADDING_LARGE)
+        audio_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 4), padx=UITheme.PADDING_LARGE)
         
         # Audio source dropdown
         audio_options = ["No audio", "Microphone", "Audio Playback"]
@@ -335,10 +353,10 @@ class AudioSettingsSection(BaseCard):
             content_frame,
             values=audio_options,
             state="readonly",
-            width=400,
-            height=30
+            width=340,
+            height=28
         )
-        self.audio_combo.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 6), padx=UITheme.PADDING_LARGE)
+        self.audio_combo.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 4), padx=UITheme.PADDING_LARGE)
         self.audio_combo.set("Audio Playback")
         
         # Audio hint
@@ -348,7 +366,7 @@ class AudioSettingsSection(BaseCard):
             font=ctk.CTkFont(family=UITheme.FONT_FAMILY, size=UITheme.FONT_SIZE_SMALL),
             text_color=UITheme.TEXT_SECONDARY
         )
-        audio_hint.grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(0, 8), padx=UITheme.PADDING_LARGE)
+        audio_hint.grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(0, 6), padx=UITheme.PADDING_LARGE)
     
     def _setup_bindings(self):
         """Setup event bindings"""
@@ -415,11 +433,11 @@ class ControlSection(ctk.CTkFrame):
             self,
             text="▶ Start Mirroring",
             command=self._on_toggle_clicked,
-            width=220,
-            height=50,
+            width=210,
+            height=45,
             font=ctk.CTkFont(family=UITheme.FONT_FAMILY, size=UITheme.FONT_SIZE_LARGE, weight="bold")
         )
-        self.toggle_btn.grid(row=0, column=0, pady=(UITheme.PADDING_LARGE, 0))
+        self.toggle_btn.grid(row=0, column=0, pady=(UITheme.PADDING_SMALL, 0))
     
     def _on_toggle_clicked(self):
         """Handle toggle button click"""
@@ -442,20 +460,26 @@ class ControlSection(ctk.CTkFrame):
         """Update the button state"""
         self.is_running = is_running
         
-        if is_running:
-            self.toggle_btn.configure(
-                text="⏹ Stop Mirroring",
-                fg_color=UITheme.ERROR_COLOR,
-                hover_color="#ff6666",
-                text_color="#ffffff"
-            )
-        else:
-            self.toggle_btn.configure(
-                text="▶ Start Mirroring",
-                fg_color=UITheme.BUTTON_PRIMARY,
-                hover_color=UITheme.BUTTON_HOVER,
-                text_color=UITheme.TEXT_PRIMARY
-            )
+        try:
+            if is_running:
+                self.toggle_btn.configure(
+                    text="⏹ Stop Mirroring",
+                    fg_color=UITheme.ERROR_COLOR,
+                    hover_color="#ff6666",
+                    text_color="#ffffff"
+                )
+            else:
+                self.toggle_btn.configure(
+                    text="▶ Start Mirroring",
+                    fg_color=UITheme.BUTTON_PRIMARY,
+                    hover_color=UITheme.BUTTON_HOVER,
+                    text_color=UITheme.TEXT_PRIMARY
+                )
+        except tk.TclError:
+            # UI might be destroyed during shutdown
+            pass
+        except Exception as e:
+            print(f"Error updating button state: {e}")
 
 
 class MainLayout(ctk.CTkFrame):
@@ -487,11 +511,11 @@ class MainLayout(ctk.CTkFrame):
             title="Scrcpy Controller",
             icon="🎮"
         )
-        self.header.grid(row=0, column=0, sticky="ew", pady=(UITheme.PADDING_MEDIUM, 0), padx=10)
+        self.header.grid(row=0, column=0, sticky="ew", pady=(UITheme.PADDING_MEDIUM, 0), padx=UITheme.PADDING_LARGE)
         
         # Main content container
         content_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        content_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(UITheme.PADDING_MEDIUM, UITheme.PADDING_MEDIUM))
+        content_frame.grid(row=1, column=0, sticky="nsew", padx=UITheme.PADDING_LARGE, pady=(UITheme.PADDING_MEDIUM, UITheme.PADDING_MEDIUM))
         content_frame.grid_columnconfigure(0, weight=1)
         
         # Device selection section
@@ -508,7 +532,7 @@ class MainLayout(ctk.CTkFrame):
         
         # Control section
         self.control_section = ControlSection(content_frame)
-        self.control_section.grid(row=3, column=0, pady=(UITheme.PADDING_LARGE, 0))
+        self.control_section.grid(row=3, column=0, pady=(UITheme.PADDING_SMALL, 0))
     
     def get_device_section(self) -> DeviceSelectionSection:
         """Get the device selection section"""

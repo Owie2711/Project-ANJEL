@@ -1,8 +1,8 @@
 {
-    "bitrate": "20",
+    "bitrate": "40",
     "framerate": "60",
     "fullscreen_enabled": 0,
-    "audio_source": "Audio Playback",
+    "audio_source": "No audio",
     "auto_reconnect_enabled": 1,
     "reconnect_max_attempts": 0,
     "reconnect_delay": 3.0,

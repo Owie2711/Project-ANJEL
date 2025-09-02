@@ -24,9 +24,9 @@ class ScrcpyGUI(ProcessEventListener, DeviceConnectionListener):
     def __init__(self, root):
         self.root = root
         self.root.title("Scrcpy Controller")
-        self.root.geometry("400x600")
+        self.root.geometry("350x560")
         self.root.resizable(True, True)
-        self.root.minsize(400, 600)
+        self.root.minsize(350, 560)
         
         # Setup theme
         setup_theme()
@@ -62,7 +62,7 @@ class ScrcpyGUI(ProcessEventListener, DeviceConnectionListener):
         
         # Create main layout
         self.main_layout = MainLayout(self.root, self.device_manager, self.config_manager)
-        self.main_layout.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.main_layout.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         
         # Setup section callbacks
         self._setup_section_callbacks()
@@ -111,40 +111,71 @@ class ScrcpyGUI(ProcessEventListener, DeviceConnectionListener):
         if self.is_running:
             return
         
-        # Get current settings from UI
-        device_section = self.main_layout.get_device_section()
-        video_section = self.main_layout.get_video_section()
-        audio_section = self.main_layout.get_audio_section()
-        
-        device_id = device_section.get_selected_device()
-        video_settings = video_section.get_settings()
-        audio_source = audio_section.get_audio_source()
-        
-        # Validate device selection
-        is_valid, error_msg = DeviceValidator.validate_device_selection(
-            device_id, self.device_manager.get_device_ids()
-        )
-        if not is_valid:
-            messagebox.showerror("Error", error_msg)
-            return
-        
-        # Store the last connected device for auto-reconnect
-        self.last_connected_device = device_id
-        self.config_manager.set('last_selected_device', device_id)
-        
-        # Create scrcpy configuration
-        config = ScrcpyConfig(
-            device_id=device_id,
-            bitrate=f"{video_settings['bitrate']}M",
-            framerate=video_settings['framerate'],
-            fullscreen=video_settings['fullscreen_enabled'],
-            audio_source=self.config_manager.get_audio_source_internal()
-        )
-        
         try:
+            # Get current settings from UI
+            device_section = self.main_layout.get_device_section()
+            video_section = self.main_layout.get_video_section()
+            audio_section = self.main_layout.get_audio_section()
+            
+            device_id = device_section.get_selected_device()
+            video_settings = video_section.get_settings()
+            audio_source = audio_section.get_audio_source()
+            
+            # Validate device selection
+            is_valid, error_msg = DeviceValidator.validate_device_selection(
+                device_id, self.device_manager.get_device_ids()
+            )
+            if not is_valid:
+                messagebox.showerror("Error", error_msg)
+                return
+            
+            # Validate video settings
+            if not self._validate_video_settings(video_settings):
+                return
+            
+            # Store the last connected device for auto-reconnect
+            self.last_connected_device = device_id
+            self.config_manager.set('last_selected_device', device_id)
+            
+            # Get audio source safely
+            try:
+                audio_source_internal = self.config_manager.get_audio_source_internal()
+            except Exception as e:
+                print(f"Error getting audio source, using default: {e}")
+                audio_source_internal = "playback"
+            
+            # Create scrcpy configuration
+            config = ScrcpyConfig(
+                device_id=device_id,
+                bitrate=f"{video_settings['bitrate']}M",
+                framerate=video_settings['framerate'],
+                fullscreen=video_settings['fullscreen_enabled'],
+                audio_source=audio_source_internal
+            )
+            
             self.process_manager.start_process(config)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start scrcpy: {str(e)}")
+    
+    def _validate_video_settings(self, video_settings: dict) -> bool:
+        """Validate video settings before starting scrcpy"""
+        try:
+            # Validate bitrate
+            bitrate = float(video_settings.get('bitrate', 0))
+            if bitrate <= 0 or bitrate > 1000:
+                messagebox.showerror("Error", "Bitrate must be between 1 and 1000 Mbps")
+                return False
+            
+            # Validate framerate
+            framerate = int(video_settings.get('framerate', 0))
+            if framerate <= 0 or framerate > 240:
+                messagebox.showerror("Error", "Framerate must be between 1 and 240 FPS")
+                return False
+            
+            return True
+        except (ValueError, TypeError) as e:
+            messagebox.showerror("Error", f"Invalid video settings: {str(e)}")
+            return False
     
     def stop_scrcpy(self):
         """Stop the running scrcpy process"""
@@ -187,46 +218,78 @@ class ScrcpyGUI(ProcessEventListener, DeviceConnectionListener):
     
     def on_process_stopped(self, exit_code):
         """Called when process stops"""
-        # Only reset state if auto-reconnect is disabled or manually stopped
-        if not self.config_manager.get('auto_reconnect_enabled', False) or not self.last_connected_device:
-            self.is_running = False
-            control_section = self.main_layout.get_control_section()
-            control_section.set_running_state(False)
-            
-            device_section = self.main_layout.get_device_section()
-            device_section.clear_reconnect_status()
-            
-            print("Ready to start mirroring")
-        else:
-            # Keep running state during auto-reconnect
-            print("Process stopped - auto-reconnect will attempt to restart")
+        try:
+            # Only reset state if auto-reconnect is disabled or manually stopped
+            if not self.config_manager.get('auto_reconnect_enabled', False) or not self.last_connected_device:
+                self.is_running = False
+                control_section = self.main_layout.get_control_section()
+                control_section.set_running_state(False)
+                
+                device_section = self.main_layout.get_device_section()
+                device_section.clear_reconnect_status()
+                
+                print("Ready to start mirroring")
+            else:
+                # Keep running state during auto-reconnect
+                print("Process stopped - auto-reconnect will attempt to restart")
+        except tk.TclError:
+            # UI might be destroyed during shutdown
+            pass
+        except Exception as e:
+            print(f"Error handling process stop: {e}")
     
     def on_process_error(self, error):
         """Called when process error occurs"""
-        messagebox.showerror("Error", f"Process error: {str(error)}")
+        try:
+            messagebox.showerror("Error", f"Process error: {str(error)}")
+        except tk.TclError:
+            # UI might be destroyed, log instead
+            print(f"Process error (UI unavailable): {str(error)}")
+        except Exception as e:
+            print(f"Error handling process error: {e}")
     
     def on_reconnect_attempt(self, attempt):
         """Called during reconnect attempts"""
-        device_section = self.main_layout.get_device_section()
-        device_section.update_reconnect_status(
-            f"Auto-reconnecting... (attempt {attempt})", 
-            "warning"
-        )
+        try:
+            device_section = self.main_layout.get_device_section()
+            device_section.update_reconnect_status(
+                f"Auto-reconnecting... (attempt {attempt})", 
+                "warning"
+            )
+        except tk.TclError:
+            # UI might be destroyed during shutdown
+            pass
+        except Exception as e:
+            print(f"Error updating reconnect status: {e}")
     
     def on_reconnect_success(self):
         """Called on successful reconnection"""
-        device_section = self.main_layout.get_device_section()
-        device_section.update_reconnect_status("Device reconnected successfully!", "success")
-        
-        # Ensure UI is in running state
-        self.is_running = True
-        control_section = self.main_layout.get_control_section()
-        control_section.set_running_state(True)
-        
-        # Clear status after 3 seconds
-        self.root.after(3000, lambda: device_section.clear_reconnect_status())
-        
-        print(f"Auto-reconnect successful for device: {self.last_connected_device}")
+        try:
+            device_section = self.main_layout.get_device_section()
+            device_section.update_reconnect_status("Device reconnected successfully!", "success")
+            
+            # Ensure UI is in running state
+            self.is_running = True
+            control_section = self.main_layout.get_control_section()
+            control_section.set_running_state(True)
+            
+            # Clear status after 3 seconds with error handling
+            def clear_status():
+                try:
+                    device_section.clear_reconnect_status()
+                except tk.TclError:
+                    pass  # UI might be destroyed
+                except Exception as e:
+                    print(f"Error clearing reconnect status: {e}")
+            
+            self.root.after(3000, clear_status)
+            
+            print(f"Auto-reconnect successful for device: {self.last_connected_device}")
+        except tk.TclError:
+            # UI might be destroyed during shutdown
+            pass
+        except Exception as e:
+            print(f"Error in reconnect success handler: {e}")
     
     # DeviceConnectionListener implementation
     def on_devices_changed(self, devices):

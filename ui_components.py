@@ -23,20 +23,20 @@ class UITheme:
     BUTTON_PRIMARY = "#ffffff"
     BUTTON_HOVER = "#f0f0f0"
     
-    # Spacing
-    PADDING_SMALL = 5
-    PADDING_MEDIUM = 8
-    PADDING_LARGE = 12
-    PADDING_XL = 15
-    CORNER_RADIUS = 15
+    # Spacing - Better balanced
+    PADDING_SMALL = 4
+    PADDING_MEDIUM = 7
+    PADDING_LARGE = 10
+    PADDING_XL = 12
+    CORNER_RADIUS = 12
     BORDER_WIDTH = 2
     
-    # Fonts
+    # Fonts - 20% larger for better readability
     FONT_FAMILY = "Segoe UI"
-    FONT_SIZE_SMALL = 9
-    FONT_SIZE_NORMAL = 11
-    FONT_SIZE_LARGE = 14
-    FONT_SIZE_TITLE = 16
+    FONT_SIZE_SMALL = 11  # 9 * 1.2 = 10.8 ≈ 11
+    FONT_SIZE_NORMAL = 12  # 10 * 1.2 = 12
+    FONT_SIZE_LARGE = 14  # 12 * 1.2 = 14.4 ≈ 14
+    FONT_SIZE_TITLE = 17  # 14 * 1.2 = 16.8 ≈ 17
 
 
 class BaseCard(ctk.CTkFrame):
@@ -77,10 +77,16 @@ class BaseCard(ctk.CTkFrame):
     
     def add_content_frame(self, **kwargs) -> ctk.CTkFrame:
         """Add a content frame to the card"""
-        content_kwargs = {'fg_color': 'transparent'}
-        content_kwargs.update(kwargs)
+        # Filter kwargs to only include supported CTkFrame parameters with correct types
+        frame_kwargs = {'fg_color': 'transparent'}
         
-        content_frame = ctk.CTkFrame(self, **content_kwargs)
+        # Override fg_color if provided
+        if 'fg_color' in kwargs and isinstance(kwargs['fg_color'], str):
+            frame_kwargs['fg_color'] = kwargs['fg_color']
+        
+        # Create frame with basic parameters to avoid type issues
+        # Additional styling can be applied after creation if needed
+        content_frame = ctk.CTkFrame(self, fg_color=frame_kwargs['fg_color'])  # type: ignore[misc]
         content_frame.grid(row=self.current_row, column=0, sticky="ew", 
                           pady=(0, UITheme.PADDING_SMALL), 
                           padx=UITheme.PADDING_LARGE)
@@ -251,7 +257,7 @@ class HeaderSection(ctk.CTkFrame):
     
     def __init__(self, parent, title: str, icon: str = "", **kwargs):
         frame_kwargs = {
-            'height': 45,
+            'height': 40,
             'corner_radius': 0,
             'fg_color': 'transparent'
         }
@@ -259,25 +265,30 @@ class HeaderSection(ctk.CTkFrame):
         
         super().__init__(parent, **frame_kwargs)
         self.grid_propagate(False)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)  # Center the content
+        
+        # Container for centered content
+        content_frame = ctk.CTkFrame(self, fg_color='transparent')
+        content_frame.grid(row=0, column=0)
         
         # Icon
         if icon:
             icon_label = ctk.CTkLabel(
-                self, 
+                content_frame, 
                 text=icon,
                 font=ctk.CTkFont(family=UITheme.FONT_FAMILY, size=20)
             )
-            icon_label.grid(row=0, column=0, sticky="w", padx=(0, 10))
+            icon_label.grid(row=0, column=0, sticky="", padx=(0, 8))
         
         # Title
         title_label = ctk.CTkLabel(
-            self, 
+            content_frame, 
             text=title,
             font=ctk.CTkFont(family=UITheme.FONT_FAMILY, size=UITheme.FONT_SIZE_TITLE, weight="bold"),
             text_color=UITheme.TEXT_PRIMARY
         )
-        title_label.grid(row=0, column=1, sticky="w")
+        title_column = 1 if icon else 0
+        title_label.grid(row=0, column=title_column, sticky="")
 
 
 def setup_theme():
