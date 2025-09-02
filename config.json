@@ -1,0 +1,7 @@
+{
+    "bitrate": "20",
+    "framerate": "60",
+    "fullscreen_enabled": false,
+    "auto_reconnect_enabled": true,
+    "audio_source": "Audio Playback"
+}
