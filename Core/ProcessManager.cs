@@ -12,6 +12,8 @@ namespace ScrcpyController.Core
         public string Bitrate { get; set; } = "20M";
         public int Framerate { get; set; } = 60;
         public bool Fullscreen { get; set; } = false;
+        public bool NoControl { get; set; } = false;
+        public string VideoResolution { get; set; } = "Original Device Resolution";
         public string AudioSource { get; set; } = "playback";
         public List<string> AdditionalArgs { get; set; } = new();
 
@@ -27,6 +29,22 @@ namespace ScrcpyController.Core
 
             // Add framerate
             cmd.AddRange(new[] { "--max-fps", Framerate.ToString() });
+
+            // Add video resolution
+            if (VideoResolution != "Original Device Resolution")
+            {
+                string maxSize = VideoResolution switch
+                {
+                    "720p" => "1280",
+                    "1080p" => "1920",
+                    "4K" => "3840",
+                    _ => ""
+                };
+                if (!string.IsNullOrEmpty(maxSize))
+                {
+                    cmd.AddRange(new[] { "--max-size", maxSize });
+                }
+            }
 
             // Add window positioning to ensure visibility (but keep original device size)
             cmd.AddRange(new[] { "--window-x=100", "--window-y=100" });
@@ -48,6 +66,10 @@ namespace ScrcpyController.Core
                     cmd.Add("--no-audio");
                     break;
             }
+
+            // Add no-control if enabled
+            if (NoControl)
+                cmd.Add("--no-control");
 
             // Add any additional arguments
             cmd.AddRange(AdditionalArgs);

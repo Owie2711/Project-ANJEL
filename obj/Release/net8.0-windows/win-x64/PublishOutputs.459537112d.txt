@@ -1,0 +1,7 @@
+D:\HOBIES\Github\Project-ANJEL - dev\publish\single-file\ScrcpyController.pdb
+D:\HOBIES\Github\Project-ANJEL - dev\publish\single-file\D3DCompiler_47_cor3.dll
+D:\HOBIES\Github\Project-ANJEL - dev\publish\single-file\PenImc_cor3.dll
+D:\HOBIES\Github\Project-ANJEL - dev\publish\single-file\PresentationNative_cor3.dll
+D:\HOBIES\Github\Project-ANJEL - dev\publish\single-file\vcruntime140_cor3.dll
+D:\HOBIES\Github\Project-ANJEL - dev\publish\single-file\wpfgfx_cor3.dll
+D:\HOBIES\Github\Project-ANJEL - dev\publish\single-file\ScrcpyController.exe

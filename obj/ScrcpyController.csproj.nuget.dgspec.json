@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj": {}
+    "d:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj": {}
   },
   "projects": {
-    "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj": {
+    "d:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj",
+        "projectUniqueName": "d:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj",
         "projectName": "ScrcpyController",
-        "projectPath": "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj",
+        "projectPath": "d:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj",
         "packagesPath": "C:\\Users\\Zowie\\.nuget\\packages\\",
-        "outputPath": "D:\\HOBIES\\Github\\Project-ANJEL - dev\\obj\\",
+        "outputPath": "d:\\HOBIES\\Github\\Project-ANJEL - dev\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Zowie\\AppData\\Roaming\\NuGet\\NuGet.Config"

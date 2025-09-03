@@ -28,6 +28,9 @@ namespace ScrcpyController.UI
         private NumericUpDown _framerateNumericUpDown = null!;
         private CheckBox _fullscreenCheckBox = null!;
         private CheckBox _autoReconnectCheckBox = null!;
+        private CheckBox _noControlCheckBox = null!;
+        private Label _resolutionLabel = null!;
+        private ComboBox _resolutionComboBox = null!;
 
         private GroupBox _audioGroupBox = null!;
         private ComboBox _audioComboBox = null!;
@@ -38,6 +41,8 @@ namespace ScrcpyController.UI
 
         public MainForm()
         {
+            Console.WriteLine("MainForm constructor start");
+
             // Initialize managers
             _configManager = new ConfigManager();
             _deviceManager = new DeviceManager();
@@ -47,11 +52,17 @@ namespace ScrcpyController.UI
             _deviceManager.AddListener(this);
             _processManager.AddListener(this);
 
+            Console.WriteLine("Managers initialized");
+
             InitializeComponent();
+            Console.WriteLine("InitializeComponent done");
+
             LoadConfiguration();
-            
+            Console.WriteLine("LoadConfiguration done");
+
             // Start device monitoring
             _deviceManager.StartMonitoring();
+            Console.WriteLine("StartMonitoring done");
         }
 
         private void InitializeComponent()
@@ -60,11 +71,14 @@ namespace ScrcpyController.UI
 
             // Form settings
             Text = "Scrcpy Controller";
-            Size = new Size(400, 650);
-            MinimumSize = new Size(350, 560);
+            Size = new Size(400, 610);
+            MinimumSize = new Size(400, 610);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
+
+            // The icon is already set by the ApplicationIcon property in the project file
+            // No need to manually load it here
 
             // Create UI sections
             CreateDeviceSection();
@@ -94,8 +108,10 @@ namespace ScrcpyController.UI
                 Location = new Point(10, 25),
                 Size = new Size(260, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                DrawMode = DrawMode.OwnerDrawFixed
             };
+            _deviceComboBox.DrawItem += ComboBox_DrawItem;
             _deviceComboBox.SelectedIndexChanged += DeviceComboBox_SelectedIndexChanged;
 
             _refreshButton = new Button
@@ -126,62 +142,139 @@ namespace ScrcpyController.UI
             {
                 Text = "Video Settings",
                 Location = new Point(10, 140),
-                Size = new Size(360, 150),
+                Size = new Size(360, 180),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
+            // Resolution section
+            _resolutionLabel = new Label
+            {
+                Text = "Resolution",
+                Location = new Point(130, 20),
+                Size = new Size(100, 20),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            _resolutionComboBox = new ComboBox
+            {
+                Location = new Point(100, 45),
+                Size = new Size(160, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                DrawMode = DrawMode.OwnerDrawFixed
+            };
+            _resolutionComboBox.Items.AddRange(new[] { "Device Resolution", "720p", "1080p", "4K" });
+            _resolutionComboBox.SelectedIndex = 0;
+            _resolutionComboBox.DrawItem += ComboBox_DrawItem;
+            _resolutionComboBox.SelectedIndexChanged += ResolutionComboBox_SelectedIndexChanged;
+
+            // Bitrate section
             _bitrateLabel = new Label
             {
-                Text = "Bitrate (Mbps):",
-                Location = new Point(10, 25),
-                Size = new Size(100, 20)
+                Text = "Bitrate (Mbps)",
+                Location = new Point(60, 80),
+                Size = new Size(100, 20),
+                TextAlign = ContentAlignment.MiddleCenter
             };
 
             _bitrateTextBox = new TextBox
             {
-                Location = new Point(120, 23),
+                Location = new Point(60, 105),
                 Size = new Size(80, 23),
-                Text = "20"
+                Text = "20",
+                TextAlign = HorizontalAlignment.Center
             };
             _bitrateTextBox.TextChanged += BitrateTextBox_TextChanged;
 
+            // Framerate section
             _framerateLabel = new Label
             {
-                Text = "Max FPS:",
-                Location = new Point(220, 25),
-                Size = new Size(60, 20)
+                Text = "Max FPS",
+                Location = new Point(220, 80),
+                Size = new Size(60, 20),
+                TextAlign = ContentAlignment.MiddleCenter
             };
 
             _framerateNumericUpDown = new NumericUpDown
             {
-                Location = new Point(290, 23),
+                Location = new Point(220, 105),
                 Size = new Size(60, 23),
                 Minimum = 1,
                 Maximum = 240,
-                Value = 60
+                Value = 60,
+                TextAlign = HorizontalAlignment.Center,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(0)
             };
+
+            // Hide the up-down arrows completely
+            if (_framerateNumericUpDown.Controls.Count > 0)
+            {
+                var buttons = _framerateNumericUpDown.Controls[0];
+                buttons.Size = new Size(0, 0);
+                buttons.Visible = false;
+                buttons.Enabled = false;
+            }
+
+            // Ensure proper text centering with layout event
+            _framerateNumericUpDown.Layout += (s, e) =>
+            {
+                // Hide buttons again in case they reappear
+                if (_framerateNumericUpDown.Controls.Count > 0)
+                {
+                    var btns = _framerateNumericUpDown.Controls[0];
+                    btns.Size = new Size(0, 0);
+                    btns.Visible = false;
+                    btns.Enabled = false;
+                }
+
+                // Position the TextBox to take full client area with precise centering
+                if (_framerateNumericUpDown.Controls.Count > 1 && _framerateNumericUpDown.Controls[1] is TextBox tb)
+                {
+                    tb.TextAlign = HorizontalAlignment.Center;
+                    tb.Location = new Point(0, 0);
+                    tb.Size = new Size(_framerateNumericUpDown.ClientSize.Width, _framerateNumericUpDown.ClientSize.Height);
+                    tb.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
+                    tb.Margin = new Padding(0);
+                    tb.Padding = new Padding(0);
+                    // Force the text box to redraw with centered text
+                    tb.Invalidate();
+                }
+            };
+
+            // Force initial layout
+            _framerateNumericUpDown.PerformLayout();
+
             _framerateNumericUpDown.ValueChanged += FramerateNumericUpDown_ValueChanged;
 
             _fullscreenCheckBox = new CheckBox
             {
                 Text = "Fullscreen Mode",
-                Location = new Point(10, 55),
-                Size = new Size(150, 20)
+                Location = new Point(30, 130),
+                Size = new Size(120, 20)
             };
             _fullscreenCheckBox.CheckedChanged += FullscreenCheckBox_CheckedChanged;
 
             _autoReconnectCheckBox = new CheckBox
             {
                 Text = "Auto Reconnect",
-                Location = new Point(10, 85),
-                Size = new Size(150, 20)
+                Location = new Point(160, 130),
+                Size = new Size(120, 20)
             };
             _autoReconnectCheckBox.CheckedChanged += AutoReconnectCheckBox_CheckedChanged;
 
-            _videoGroupBox.Controls.AddRange(new Control[] 
+            _noControlCheckBox = new CheckBox
+            {
+                Text = "Disable Control",
+                Location = new Point(30, 155),
+                Size = new Size(120, 20)
+            };
+            _noControlCheckBox.CheckedChanged += NoControlCheckBox_CheckedChanged;
+
+            _videoGroupBox.Controls.AddRange(new Control[]
             {
                 _bitrateLabel, _bitrateTextBox, _framerateLabel, _framerateNumericUpDown,
-                _fullscreenCheckBox, _autoReconnectCheckBox
+                _resolutionLabel, _resolutionComboBox,
+                _fullscreenCheckBox, _autoReconnectCheckBox, _noControlCheckBox
             });
 
             Controls.Add(_videoGroupBox);
@@ -192,27 +285,30 @@ namespace ScrcpyController.UI
             _audioGroupBox = new GroupBox
             {
                 Text = "Audio Settings",
-                Location = new Point(10, 300),
+                Location = new Point(10, 330),
                 Size = new Size(360, 80),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             var audioLabel = new Label
             {
-                Text = "Audio Source:",
-                Location = new Point(10, 25),
-                Size = new Size(100, 20)
+                Text = "Audio Source",
+                Location = new Point(130, 15), // Centered horizontally (360/2 - 100/2 = 130)
+                Size = new Size(100, 20),
+                TextAlign = ContentAlignment.MiddleCenter
             };
 
             _audioComboBox = new ComboBox
             {
-                Location = new Point(120, 23),
+                Location = new Point(80, 40), // Centered below the label
                 Size = new Size(200, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                DrawMode = DrawMode.OwnerDrawFixed
             };
             _audioComboBox.Items.AddRange(new[] { "Audio Playback", "Microphone", "No audio" });
             _audioComboBox.SelectedIndex = 0;
+            _audioComboBox.DrawItem += ComboBox_DrawItem;
             _audioComboBox.SelectedIndexChanged += AudioComboBox_SelectedIndexChanged;
 
             _audioGroupBox.Controls.AddRange(new Control[] { audioLabel, _audioComboBox });
@@ -223,8 +319,8 @@ namespace ScrcpyController.UI
         {
             _controlGroupBox = new GroupBox
             {
-                Text = "Control",
-                Location = new Point(10, 390),
+                Text = "",
+                Location = new Point(10, 420),
                 Size = new Size(360, 120),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -233,7 +329,7 @@ namespace ScrcpyController.UI
             {
                 Text = "Start Mirror",
                 Location = new Point(10, 25),
-                Size = new Size(340, 40),
+                Size = new Size(340, 60),
                 BackColor = Color.FromArgb(37, 99, 235),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -246,7 +342,7 @@ namespace ScrcpyController.UI
             _statusLabel = new Label
             {
                 Text = "Ready to start mirroring",
-                Location = new Point(10, 75),
+                Location = new Point(10, 85),
                 Size = new Size(340, 30),
                 TextAlign = ContentAlignment.MiddleCenter,
                 ForeColor = Color.Black,
@@ -285,9 +381,19 @@ namespace ScrcpyController.UI
                 
                 if (_fullscreenCheckBox != null)
                     _fullscreenCheckBox.Checked = config.FullscreenEnabled;
-                
+
                 if (_autoReconnectCheckBox != null)
                     _autoReconnectCheckBox.Checked = config.AutoReconnectEnabled;
+
+                if (_noControlCheckBox != null)
+                    _noControlCheckBox.Checked = config.NoControlEnabled;
+
+                if (_resolutionComboBox != null)
+                {
+                    int index = _resolutionComboBox.Items.IndexOf(config.VideoResolution);
+                    if (index >= 0)
+                        _resolutionComboBox.SelectedIndex = index;
+                }
 
                 // Set audio source safely
                 if (_audioComboBox != null)
@@ -426,7 +532,7 @@ namespace ScrcpyController.UI
                 {
                     // According to user memory: empty field with no placeholder text when no devices
                     _deviceComboBox.Items.Clear(); // Completely empty as per user preference
-                    _deviceStatusLabel.Text = "No devices connected. Enable USB debugging and connect device.";
+                    _deviceStatusLabel.Text = "No devices connected." + Environment.NewLine + "Enable USB debugging and connect device.";
                     _deviceStatusLabel.ForeColor = Color.Red;
                     // Don't set any selected index - leave completely empty
                 }
@@ -650,6 +756,36 @@ namespace ScrcpyController.UI
             }
         }
 
+        private void NoControlCheckBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (_configManager != null && _noControlCheckBox != null)
+                {
+                    _configManager.Set("NoControlEnabled", _noControlCheckBox.Checked);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating no-control setting: {ex.Message}");
+            }
+        }
+
+        private void ResolutionComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (_configManager != null && _resolutionComboBox != null && _resolutionComboBox.SelectedItem != null)
+                {
+                    _configManager.Set("VideoResolution", _resolutionComboBox.SelectedItem.ToString()!);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating video resolution: {ex.Message}");
+            }
+        }
+
         private void AudioComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
             try
@@ -666,6 +802,22 @@ namespace ScrcpyController.UI
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating audio source: {ex.Message}");
+            }
+        }
+
+        private void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
+        {
+            if (sender is ComboBox comboBox)
+            {
+                e.DrawBackground();
+                
+                if (e.Index >= 0 && e.Index < comboBox.Items.Count)
+                {
+                    string text = comboBox.Items[e.Index]?.ToString() ?? string.Empty;
+                    TextRenderer.DrawText(e.Graphics, text, e.Font, e.Bounds, e.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+                
+                e.DrawFocusRectangle();
             }
         }
 
@@ -720,6 +872,8 @@ namespace ScrcpyController.UI
                     Bitrate = $"{_bitrateTextBox.Text}M",
                     Framerate = (int)_framerateNumericUpDown.Value,
                     Fullscreen = _fullscreenCheckBox.Checked,
+                    NoControl = _noControlCheckBox.Checked,
+                    VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
                     AudioSource = audioSourceInternal
                 };
 
@@ -754,6 +908,8 @@ namespace ScrcpyController.UI
                             Bitrate = $"{_bitrateTextBox.Text}M",
                             Framerate = (int)_framerateNumericUpDown.Value,
                             Fullscreen = _fullscreenCheckBox.Checked,
+                            NoControl = _noControlCheckBox.Checked,
+                            VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
                             AudioSource = audioSourceInternal
                         };
 
@@ -779,6 +935,8 @@ namespace ScrcpyController.UI
                             Bitrate = $"{_bitrateTextBox.Text}M",
                             Framerate = (int)_framerateNumericUpDown.Value,
                             Fullscreen = _fullscreenCheckBox.Checked,
+                            NoControl = _noControlCheckBox.Checked,
+                            VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
                             AudioSource = audioSourceInternal
                         };
 
@@ -1111,6 +1269,8 @@ namespace ScrcpyController.UI
                     _framerateNumericUpDown?.Dispose();
                     _fullscreenCheckBox?.Dispose();
                     _autoReconnectCheckBox?.Dispose();
+                    _resolutionLabel?.Dispose();
+                    _resolutionComboBox?.Dispose();
                     _audioGroupBox?.Dispose();
                     _audioComboBox?.Dispose();
                     _controlGroupBox?.Dispose();

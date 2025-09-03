@@ -13,6 +13,8 @@ namespace ScrcpyController.Core
         private bool _fullscreenEnabled = false;
         private string _audioSource = "Audio Playback";
         private bool _autoReconnectEnabled = false;
+        private bool _noControlEnabled = false;
+        private string _videoResolution = "Original Device Resolution";
         private int _reconnectMaxAttempts = 0; // 0 = unlimited
         private double _reconnectDelay = 3.0;
         private bool _skipProcessCheck = true; // Skip scrcpy process detection (enabled by default)
@@ -59,6 +61,20 @@ namespace ScrcpyController.Core
         {
             get => _autoReconnectEnabled;
             set { _autoReconnectEnabled = value; OnPropertyChanged(); }
+        }
+
+        [JsonProperty("no_control_enabled")]
+        public bool NoControlEnabled
+        {
+            get => _noControlEnabled;
+            set { _noControlEnabled = value; OnPropertyChanged(); }
+        }
+
+        [JsonProperty("video_resolution")]
+        public string VideoResolution
+        {
+            get => _videoResolution;
+            set { _videoResolution = value; OnPropertyChanged(); }
         }
 
         [JsonProperty("reconnect_max_attempts")]
