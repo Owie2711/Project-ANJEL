@@ -119,6 +119,29 @@ namespace ScrcpyController.Core
 
         public static string FindScrcpyExecutable()
         {
+            // Try to get configured path from AppConfig
+            try
+            {
+                var configManager = new ConfigManager();
+                if (configManager.LoadConfig())
+                {
+                    string configuredPath = configManager.Config.ScrcpyPath;
+                    if (!string.IsNullOrWhiteSpace(configuredPath))
+                    {
+                        string scrcpyExePath = Path.Combine(configuredPath, "scrcpy.exe");
+                        if (File.Exists(scrcpyExePath))
+                        {
+                            Debug.WriteLine($"Using configured scrcpy at: {scrcpyExePath}");
+                            return scrcpyExePath;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading configured scrcpy path: {ex.Message}");
+            }
+
             string appDir = GetApplicationDirectory();
 
             // Check for scrcpy in the same directory as the application

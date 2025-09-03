@@ -15,6 +15,7 @@ namespace ScrcpyController.Core
         private bool _autoReconnectEnabled = false;
         private bool _noControlEnabled = false;
         private string _videoResolution = "Original Device Resolution";
+        private string _scrcpyPath = "";
         private int _reconnectMaxAttempts = 0; // 0 = unlimited
         private double _reconnectDelay = 3.0;
         private bool _skipProcessCheck = true; // Skip scrcpy process detection (enabled by default)
@@ -142,6 +143,13 @@ namespace ScrcpyController.Core
         {
             get => _additionalScrcpyArgs;
             set { _additionalScrcpyArgs = value ?? new(); OnPropertyChanged(); }
+        }
+
+        [JsonProperty("scrcpy_path")]
+        public string ScrcpyPath
+        {
+            get => _scrcpyPath;
+            set { _scrcpyPath = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
