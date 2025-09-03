@@ -1,36 +1,36 @@
 # 🎥 Project-ANJEL
 
-**⚡ Konfigurasi custom SCRCPY untuk merekam layar Android dengan performa tinggi**  
+**⚡ Custom SCRCPY configuration for high-performance Android screen recording**  
 
 ---
 
-## ✨ Fitur Utama
+## ✨ Main Features
 
-- 🖥️ Menggunakan **SCRCPY** dengan konfigurasi optimal:
+- 🖥️ Runs **SCRCPY** with optimal configuration:
   - 🎮 Render via **OpenGL & DirectX**
-  - 📶 **Support High Bitrate**
-  - ⚡ **Support High FPS**
-  - 🖼️ Mode layar penuh (**fullscreen**)
-- 🔊 **Audio forwarding** (tersedia di Android 11 ke atas):
-  - 📱 **Android 12+**: aktif otomatis  
-  - 🔓 **Android 11**: memerlukan layar tidak terkunci saat start SCRCPY  
-  - ⬇️ **Android 10 ke bawah**: tidak mendukung audio (otomatis fallback ke video saja)  
+  - 📶 **High Bitrate Support**
+  - ⚡ **High FPS Support**
+  - 🖼️ Fullscreen mode
+- 🔊 **Audio forwarding** (available on Android 11+):
+  - 📱 **Android 12+**: enabled automatically  
+  - 🔓 **Android 11**: requires device screen unlocked when starting SCRCPY  
+  - ⬇️ **Android 10 and below**: not supported (falls back to video only)  
 
 ---
 
-## 🚀 Cara Install & Pakai
+## 🚀 How to Install & Use
 
-1. 📥 **Download** rilis terbaru (lihat tab **[Releases](../../releases)**).
-2. ⚙️ Aktifkan **USB Debugging** di perangkat Android.  
-   👉 (Pengaturan > Tentang Ponsel > ketuk **Build Number** 7x > aktifkan **Developer Options**)  
-3. 💽 **Install driver USB** (jika belum):  
-   – Windows: ikuti panduan di [developer.android.com](https://developer.android.com/studio/run/oem-usb)  
-4. 🔌 **Hubungkan** perangkat Android ke PC via USB.  
-5. ▶️ Jalankan berkas **`ScrcpyController.exe`**.  
+1. 📥 **Download** the latest release (see the **[Releases](../../releases)** tab).  
+2. ⚙️ Enable **USB Debugging** on your Android device.  
+   👉 (Settings > About Phone > tap **Build Number** 7x > enable **Developer Options**)  
+3. 💽 **Install USB drivers** (if not already):  
+   – Windows: follow the guide at [developer.android.com](https://developer.android.com/studio/run/oem-usb)  
+4. 🔌 **Connect** your Android device to your PC via USB.  
+5. ▶️ Run **`ScrcpyController.exe`**.  
 
 ---
 
-## 🛠️ Tips Penggunaan
+## 🛠️ Usage Tips
 
-- 🐢 Jika mengalami **lag/delay**, turunkan opsi `Max FPS` atau `Video Bitrate`.  
-- 🎧 Jika audio gagal, rekaman tetap berjalan dengan video saja.  
+- 🐢 If you experience **lag or delay**, try lowering `Max FPS` or `Video Bitrate`.  
+- 🎧 If audio fails, video recording will still work. 
