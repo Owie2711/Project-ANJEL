@@ -69,7 +69,6 @@ namespace ScrcpyController.Core
 
             // Check common installation paths
             string[] commonPaths = {
-                localScrcpyPath, // Check local /scrcpy folder first
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "scrcpy"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "scrcpy"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "scrcpy"),

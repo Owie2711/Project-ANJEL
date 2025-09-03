@@ -76,6 +76,7 @@ namespace ScrcpyController.UI
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             // The icon is already set by the ApplicationIcon property in the project file
             // No need to manually load it here

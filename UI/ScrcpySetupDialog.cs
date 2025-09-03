@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using ScrcpyController.Core;
+using System.Threading.Tasks;
 
 namespace ScrcpyController.UI
 {
@@ -171,16 +172,29 @@ namespace ScrcpyController.UI
             // For marquee style, we don't need to update the value
         }
 
-        private void ValidatePath(string path)
+        private async void ValidatePath(string path)
         {
-            // Show loading indicator
             ShowLoadingIndicator();
+            ScrcpyValidationResult validationResult;
 
-            // Validate path in background
-            var validationResult = _validator.ValidateScrcpyPath(path);
-
-            // Hide loading indicator
-            HideLoadingIndicator();
+            try
+            {
+                validationResult = await Task.Run(() => _validator.ValidateScrcpyPath(path));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error during Scrcpy path validation: {ex.Message}");
+                validationResult = new ScrcpyValidationResult { IsValid = false, MissingFiles = new() { "Validation error" } };
+                _statusLabel.Text = $"An error occurred during validation: {ex.Message}";
+                _statusLabel.ForeColor = Color.Red;
+                _okButton.Enabled = false;
+                HideLoadingIndicator();
+                return;
+            }
+            finally
+            {
+                HideLoadingIndicator();
+            }
 
             if (validationResult.IsValid)
             {
@@ -194,7 +208,7 @@ namespace ScrcpyController.UI
                 _statusLabel.ForeColor = SystemColors.ControlText;
                 _okButton.Enabled = false;
             }
-            else if (!System.IO.Directory.Exists(path))
+            else if (validationResult.MissingFiles.Contains("Directory does not exist")) // Rely on validator for directory existence
             {
                 _statusLabel.Text = "Directory does not exist.";
                 _statusLabel.ForeColor = Color.Red;

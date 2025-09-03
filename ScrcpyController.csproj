@@ -10,11 +10,11 @@
     <AssemblyDescription>GUI Controller for Android Screen Mirroring using SCRCPY</AssemblyDescription>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <AssemblyFileVersion>1.0.0.0</AssemblyFileVersion>
-    <ApplicationIcon>myicon.ico</ApplicationIcon>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="myicon.ico" />
+    <EmbeddedResource Include="icon.ico" />
   </ItemGroup>
 
   <ItemGroup>

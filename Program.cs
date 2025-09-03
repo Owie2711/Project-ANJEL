@@ -2,6 +2,7 @@ using ScrcpyController.Core;
 using ScrcpyController.UI;
 using System.IO;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace ScrcpyController
 {
@@ -15,27 +16,51 @@ namespace ScrcpyController
         {
             Console.WriteLine("Program.Main start");
 
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
             Console.WriteLine("ApplicationConfiguration.Initialize done");
 
-            // Enable visual styles
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Console.WriteLine("Visual styles enabled");
 
-            // Check for Scrcpy installation before running main form
-            if (!CheckScrcpyInstallation())
-            {
-                Console.WriteLine("Scrcpy installation not found or invalid");
-                return;
-            }
+            // Set up global exception handling
+            Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
-            // Run the main form
-            Console.WriteLine("About to run Application.Run");
-            Application.Run(new MainForm());
-            Console.WriteLine("Application.Run exited");
+            try
+            {
+                if (!CheckScrcpyInstallation())
+                {
+                    Console.WriteLine("Scrcpy installation not found or invalid");
+                    return;
+                }
+
+                Console.WriteLine("About to run Application.Run");
+                Application.Run(new MainForm());
+                Console.WriteLine("Application.Run exited");
+            }
+            catch (Exception ex)
+            {
+                HandleFatalException(ex, "An unrecoverable error occurred during application startup.");
+            }
+        }
+
+        private static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)
+        {
+            HandleFatalException(e.Exception, "An unhandled error occurred in the UI thread.");
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            HandleFatalException(e.ExceptionObject as Exception, "An unhandled error occurred in the application.");
+        }
+
+        private static void HandleFatalException(Exception? ex, string message)
+        {
+            string errorMessage = $"{message}\n\nDetails: {ex?.Message ?? "No details available."}\n\nStack Trace: {ex?.StackTrace ?? "No stack trace available."}";
+            MessageBox.Show(errorMessage, "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Console.WriteLine($"FATAL ERROR: {errorMessage}");
+            Environment.Exit(1); // Terminate the application
         }
 
         static bool CheckScrcpyInstallation()
@@ -44,8 +69,20 @@ namespace ScrcpyController
             var validator = new ScrcpyValidator();
             
             // Try to load existing configuration
-            configManager.LoadConfig();
-            string configuredPath = configManager.Config.ScrcpyPath;
+            string configuredPath = string.Empty;
+            try
+            {
+                configManager.LoadConfig();
+                if (configManager.Config != null)
+                {
+                    configuredPath = configManager.Config.ScrcpyPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading configuration: {ex.Message}");
+                // Continue without configured path if loading fails
+            }
             
             // Validate configured path
             if (!string.IsNullOrWhiteSpace(configuredPath))
@@ -66,16 +103,21 @@ namespace ScrcpyController
             var autoResult = validator.FindAndValidateScrcpyPath();
             if (autoResult.IsValid)
             {
-                configManager.Set("ScrcpyPath", autoResult.ScrcpyPath);
-                configManager.SaveConfig();
-                Console.WriteLine($"Auto-detected Scrcpy installation at: {autoResult.ScrcpyPath}");
-                return true;
+                try
+                {
+                    configManager.Set("ScrcpyPath", autoResult.ScrcpyPath);
+                    configManager.SaveConfig();
+                    Console.WriteLine($"Auto-detected Scrcpy installation at: {autoResult.ScrcpyPath}");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error saving auto-detected Scrcpy path: {ex.Message}");
+                    // Continue to setup dialog if saving fails
+                }
             }
             
             // Show setup dialog
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            
             using var setupDialog = new ScrcpySetupDialog();
             if (setupDialog.ShowDialog() == DialogResult.OK)
             {
@@ -84,10 +126,24 @@ namespace ScrcpyController
                 
                 if (validationResult.IsValid)
                 {
-                    configManager.Set("ScrcpyPath", selectedPath);
-                    configManager.SaveConfig();
-                    Console.WriteLine($"Scrcpy installation configured at: {selectedPath}");
-                    return true;
+                    try
+                    {
+                        configManager.Set("ScrcpyPath", selectedPath);
+                        configManager.SaveConfig();
+                        Console.WriteLine($"Scrcpy installation configured at: {selectedPath}");
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error saving configured Scrcpy path: {ex.Message}");
+                        MessageBox.Show(
+                            $"Failed to save Scrcpy path: {ex.Message}",
+                            "Configuration Save Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                        return false;
+                    }
                 }
                 else
                 {
