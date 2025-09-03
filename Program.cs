@@ -62,7 +62,7 @@ namespace ScrcpyController
                 }
             }
             
-            // Try to find Scrcpy automatically
+            // Try to find Scrcpy automatically, including checking /scrcpy subfolder
             var autoResult = validator.FindAndValidateScrcpyPath();
             if (autoResult.IsValid)
             {

@@ -58,8 +58,18 @@ namespace ScrcpyController.Core
 
         public ScrcpyValidationResult FindAndValidateScrcpyPath()
         {
+            // First check the application directory for a /scrcpy subfolder
+            string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string localScrcpyPath = Path.Combine(appDirectory, "scrcpy");
+            var localResult = ValidateScrcpyPath(localScrcpyPath);
+            if (localResult.IsValid)
+            {
+                return localResult;
+            }
+
             // Check common installation paths
             string[] commonPaths = {
+                localScrcpyPath, // Check local /scrcpy folder first
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "scrcpy"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "scrcpy"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "scrcpy"),
