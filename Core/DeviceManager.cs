@@ -117,8 +117,9 @@ namespace ScrcpyController.Core
                 
                 return false;
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] IsAdbAvailable: {ex.Message}");
                 return false;
             }
         }
@@ -156,8 +157,9 @@ namespace ScrcpyController.Core
                 
                 return new List<DeviceInfo>();
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] GetConnectedDevicesAsync: {ex.Message}");
                 return new List<DeviceInfo>();
             }
         }
@@ -200,8 +202,9 @@ namespace ScrcpyController.Core
                 
                 return null;
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[ERROR] GetDeviceNameAsync: {ex.Message}");
                 return null;
             }
         }

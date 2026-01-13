@@ -8,6 +8,125 @@ namespace ScrcpyController.UI
     /// </summary>
     public partial class MainForm : Form, IProcessEventListener, IDeviceConnectionListener, IDisposable
     {
+        // Save all current config from UI to config.json
+        private void SaveAllConfigToFile()
+        {
+            if (_configManager == null) return;
+
+            // Device selection
+            if (_deviceComboBox?.SelectedItem != null)
+                _configManager.Set("LastSelectedDevice", _deviceComboBox.SelectedItem.ToString());
+
+            // Port
+            var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
+            if (portTextBox != null)
+                _configManager.Set("Port", portTextBox.Text);
+
+            // IP
+            var ipTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "IpTextBox");
+            if (ipTextBox != null)
+                _configManager.Set("DeviceIpAddress", ipTextBox.Text);
+
+            // Video settings
+            if (_bitrateTextBox != null)
+                _configManager.Set("Bitrate", _bitrateTextBox.Text);
+            if (_framerateNumericUpDown != null)
+                _configManager.Set("Framerate", (int)_framerateNumericUpDown.Value);
+            if (_fullscreenCheckBox != null)
+                _configManager.Set("FullscreenEnabled", _fullscreenCheckBox.Checked);
+            if (_noControlCheckBox != null)
+                _configManager.Set("NoControlEnabled", _noControlCheckBox.Checked);
+            if (_resolutionComboBox?.SelectedItem != null)
+                _configManager.Set("VideoResolution", _resolutionComboBox.SelectedItem.ToString());
+
+            // Audio settings
+            if (_audioComboBox?.SelectedItem != null)
+                _configManager.Set("AudioSource", _audioComboBox.SelectedItem.ToString());
+
+            // Other settings (add as needed)
+            // ...
+
+            // Save to file
+            _configManager.SaveConfig();
+        }
+        // Event handler untuk tombol Connect
+        private void ConnectButton_Click(object? sender, EventArgs e)
+        {
+            // Cari TextBox IP dan port
+            var ipTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "IpTextBox");
+            var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
+            if (ipTextBox == null || portTextBox == null)
+            {
+                MessageBox.Show("IP address or port input not found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            string ip = ipTextBox.Text.Trim();
+            string portStr = portTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(ip))
+            {
+                MessageBox.Show("Please enter a valid IP address.", "Invalid IP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (!int.TryParse(portStr, out int port) || port < 1 || port > 65535)
+            {
+                MessageBox.Show("Invalid port number. Please enter a value between 1 and 65535.", "Invalid Port", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Jalankan perintah adb connect ip:port
+            try
+            {
+                var process = new System.Diagnostics.Process();
+                process.StartInfo.FileName = "adb";
+                process.StartInfo.Arguments = $"connect {ip}:{port}";
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.CreateNoWindow = true;
+                process.Start();
+
+                bool exited = process.WaitForExit(5000); // 5 seconds timeout
+                string output = string.Empty;
+                string error = string.Empty;
+                if (exited)
+                {
+                    try
+                    {
+                        output = process.StandardOutput.ReadToEnd();
+                        error = process.StandardError.ReadToEnd();
+                    }
+                    catch (Exception ioex)
+                    {
+                        MessageBox.Show($"Failed to read adb output: {ioex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    if (process.ExitCode == 0)
+                    {
+                        MessageBox.Show($"ADB connect to {ip}:{port} success.\n{output}", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Failed to connect to device.\n{error}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                else
+                {
+                    try { process.Kill(); }
+                    catch (Exception killEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ERROR] Gagal kill process: {killEx.Message}");
+                        MessageBox.Show($"Gagal menghentikan proses adb: {killEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    MessageBox.Show($"Connection to {ip}:{port} timed out after 5 seconds.", "Connection Timeout", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error running adb: {ex.Message}", "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         private readonly ConfigManager _configManager;
         private readonly DeviceManager _deviceManager;
         private readonly ProcessManager _processManager;
@@ -25,6 +144,53 @@ namespace ScrcpyController.UI
         private Label _bitrateLabel = null!;
         private TextBox _bitrateTextBox = null!;
         private Label _framerateLabel = null!;
+            // Event handler untuk tombol Set port number
+            private void SetPortButton_Click(object? sender, EventArgs e)
+            {
+                // Cari TextBox port
+                var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
+                if (portTextBox == null)
+                {
+                    MessageBox.Show("Port number input not found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                string portStr = portTextBox.Text.Trim();
+                if (!int.TryParse(portStr, out int port) || port < 1 || port > 65535)
+                {
+                    MessageBox.Show("Invalid port number. Please enter a value between 1 and 65535.", "Invalid Port", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Jalankan perintah adb tcpip <port>
+                try
+                {
+                    var process = new System.Diagnostics.Process();
+                    process.StartInfo.FileName = "adb";
+                    process.StartInfo.Arguments = $"tcpip {port}";
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.Start();
+                    string output = process.StandardOutput.ReadToEnd();
+                    string error = process.StandardError.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                    {
+                        MessageBox.Show($"ADB TCP/IP set to port {port}.\n{output}", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Failed to set ADB TCP/IP.\n{error}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error running adb: {ex.Message}", "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         private NumericUpDown _framerateNumericUpDown = null!;
         private CheckBox _fullscreenCheckBox = null!;
         private CheckBox _autoReconnectCheckBox = null!;
@@ -71,8 +237,8 @@ namespace ScrcpyController.UI
 
             // Form settings
             Text = "Scrcpy Controller";
-            Size = new Size(400, 610);
-            MinimumSize = new Size(400, 610);
+            Size = new Size(400, 793); // 610 + 30% = 793
+            MinimumSize = new Size(400, 793);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
@@ -99,15 +265,15 @@ namespace ScrcpyController.UI
             _deviceGroupBox = new GroupBox
             {
                 Text = "Device Selection",
-                Location = new Point(10, 10),
-                Size = new Size(360, 120),
+                Location = new Point(20, 15), // Center horizontally with more margin
+                Size = new Size(340, 170), // Slightly narrower and taller for balance
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             _deviceComboBox = new ComboBox
             {
-                Location = new Point(10, 25),
-                Size = new Size(260, 25),
+                Location = new Point(20, 25),
+                Size = new Size(200, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 DrawMode = DrawMode.OwnerDrawFixed
@@ -118,8 +284,8 @@ namespace ScrcpyController.UI
             _refreshButton = new Button
             {
                 Text = "Refresh",
-                Location = new Point(280, 25),
-                Size = new Size(70, 25),
+                Location = new Point(230, 25),
+                Size = new Size(90, 25),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             _refreshButton.Click += RefreshButton_Click;
@@ -127,13 +293,90 @@ namespace ScrcpyController.UI
             _deviceStatusLabel = new Label
             {
                 Text = "Scanning for devices...",
-                Location = new Point(10, 55),
-                Size = new Size(340, 50),
-                ForeColor = Color.Gray,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Location = new Point(10, 60), // Move lower for visibility
+                Size = new Size(320, 32), // Increase height and width for longer messages
+                ForeColor = Color.Red,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false
             };
 
-            _deviceGroupBox.Controls.AddRange(new Control[] { _deviceComboBox, _refreshButton, _deviceStatusLabel });
+            // Wireless Debugging Section
+            // Layout agar rata tengah dan rapi
+            int portRowY = 100; // Move port row lower for more space
+            int groupWidth = _deviceGroupBox.Size.Width;
+            int labelWidth = 110;
+            int textWidth = 70;
+            int buttonWidth = 110;
+            int spacing = 8;
+            int totalWidth = labelWidth + spacing + textWidth + spacing + buttonWidth;
+            int startX = (_deviceGroupBox.Size.Width - totalWidth) / 2;
+
+            var portLabel = new Label
+            {
+                Text = "ADB TCP/IP Port:",
+                Location = new Point(startX, portRowY),
+                Size = new Size(labelWidth, 23),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+
+            var portTextBox = new TextBox
+            {
+                Name = "PortTextBox",
+                Location = new Point(startX + labelWidth + spacing, portRowY),
+                Size = new Size(textWidth, 23),
+                Text = "5037",
+                TextAlign = HorizontalAlignment.Center
+            };
+            portTextBox.TextChanged += (s, e) => {
+                if (_configManager != null)
+                    _configManager.Config.PortNumber = portTextBox.Text;
+            };
+
+            var setPortButton = new Button
+            {
+                Text = "Set port number",
+                Location = new Point(startX + labelWidth + spacing + textWidth + spacing, portRowY),
+                Size = new Size(buttonWidth, 23)
+            };
+            setPortButton.Click += SetPortButton_Click;
+
+            _deviceGroupBox.Controls.AddRange(new Control[] {
+                _deviceComboBox, _refreshButton, _deviceStatusLabel,
+                portLabel, portTextBox, setPortButton
+            });
+            // IP Address and Connect Button Section
+            int ipRowY = portRowY + 40; // Increase vertical gap between port and IP rows
+            var ipLabel = new Label
+            {
+                Text = "Device IP Address:",
+                Location = new Point(startX, ipRowY),
+                Size = new Size(labelWidth, 23),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+
+            var ipTextBox = new TextBox
+            {
+                Name = "IpTextBox",
+                Location = new Point(startX + labelWidth + spacing, ipRowY),
+                Size = new Size(textWidth, 23),
+                Text = "192.168.1.100",
+                TextAlign = HorizontalAlignment.Center
+            };
+            ipTextBox.TextChanged += (s, e) => {
+                if (_configManager != null)
+                    _configManager.Config.DeviceIpAddress = ipTextBox.Text;
+            };
+
+            var connectButton = new Button
+            {
+                Text = "Connect",
+                Location = new Point(startX + labelWidth + spacing + textWidth + spacing, ipRowY),
+                Size = new Size(buttonWidth, 23)
+            };
+            connectButton.Click += ConnectButton_Click;
+
+            _deviceGroupBox.Controls.AddRange(new Control[] { ipLabel, ipTextBox, connectButton });
             Controls.Add(_deviceGroupBox);
         }
 
@@ -142,26 +385,69 @@ namespace ScrcpyController.UI
             _videoGroupBox = new GroupBox
             {
                 Text = "Video Settings",
-                Location = new Point(10, 140),
-                Size = new Size(360, 180),
+                Location = new Point(20, 200), // Center horizontally below device section
+                Size = new Size(340, 210), // Match device section width
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             // Resolution section
+            // Margin atas agar tidak terpotong
+            int marginTop = 40;
+            int spacingY = 20;
+            // Resolution (label dan ComboBox) satu baris sendiri
             _resolutionLabel = new Label
             {
                 Text = "Resolution",
-                Location = new Point(130, 20),
+                Location = new Point(20, marginTop),
                 Size = new Size(100, 20),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             _resolutionComboBox = new ComboBox
             {
-                Location = new Point(100, 45),
-                Size = new Size(160, 25),
+                Location = new Point(130, marginTop),
+                Size = new Size(210, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 DrawMode = DrawMode.OwnerDrawFixed
+            };
+
+            // Bitrate dan Max FPS di satu baris, di bawah Resolution
+            int bitrateRowY = marginTop + 35 + spacingY;
+            _bitrateLabel = new Label
+            {
+                Text = "Bitrate (Mbps)",
+                Location = new Point(20, bitrateRowY),
+                Size = new Size(100, 20),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            _bitrateTextBox = new TextBox
+            {
+                Location = new Point(130, bitrateRowY),
+                Size = new Size(60, 23),
+                Text = "20",
+                TextAlign = HorizontalAlignment.Center
+            };
+            _bitrateTextBox.TextChanged += BitrateTextBox_TextChanged;
+
+            _framerateLabel = new Label
+            {
+                Text = "Max FPS",
+                Location = new Point(210, bitrateRowY),
+                Size = new Size(60, 20),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            _framerateNumericUpDown = new NumericUpDown
+            {
+                Location = new Point(280, bitrateRowY),
+                Size = new Size(60, 23),
+                Minimum = 1,
+                Maximum = 240,
+                Value = 60,
+                TextAlign = HorizontalAlignment.Center,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(0)
             };
             _resolutionComboBox.Items.AddRange(new[] { "Device Resolution", "720p", "1080p", "4K" });
             _resolutionComboBox.SelectedIndex = 0;
@@ -286,8 +572,8 @@ namespace ScrcpyController.UI
             _audioGroupBox = new GroupBox
             {
                 Text = "Audio Settings",
-                Location = new Point(10, 330),
-                Size = new Size(360, 80),
+                Location = new Point(20, 420), // Center horizontally below video section
+                Size = new Size(340, 80),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -321,8 +607,8 @@ namespace ScrcpyController.UI
             _controlGroupBox = new GroupBox
             {
                 Text = "",
-                Location = new Point(10, 420),
-                Size = new Size(360, 120),
+                Location = new Point(20, 510), // Center horizontally below audio section
+                Size = new Size(340, 120),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -373,6 +659,11 @@ namespace ScrcpyController.UI
                     return;
                 }
 
+                // Load port number from config
+                var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
+                if (portTextBox != null)
+                    portTextBox.Text = config.PortNumber ?? "5037";
+
                 // Load UI from configuration with null checks
                 if (_bitrateTextBox != null)
                     _bitrateTextBox.Text = config.Bitrate ?? "20";
@@ -420,6 +711,11 @@ namespace ScrcpyController.UI
                 {
                     _lastConnectedDevice = config.LastSelectedDevice;
                 }
+
+                // Load IP address from config
+                var ipTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "IpTextBox");
+                if (ipTextBox != null)
+                    ipTextBox.Text = config.DeviceIpAddress ?? "192.168.1.100";
 
                 RefreshDevices();
             }

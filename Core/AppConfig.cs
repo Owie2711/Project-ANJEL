@@ -8,6 +8,21 @@ namespace ScrcpyController.Core
     /// </summary>
     public class AppConfig : INotifyPropertyChanged
     {
+        private string _portNumber = "5037";
+        [JsonProperty("port_number")]
+        public string PortNumber
+        {
+            get => _portNumber;
+            set { _portNumber = value; OnPropertyChanged(); }
+        }
+
+        private string _deviceIpAddress = "192.168.1.100";
+        [JsonProperty("device_ip_address")]
+        public string DeviceIpAddress
+        {
+            get => _deviceIpAddress;
+            set { _deviceIpAddress = value; OnPropertyChanged(); }
+        }
         private string _bitrate = "20";
         private int _framerate = 60;
         private bool _fullscreenEnabled = false;
