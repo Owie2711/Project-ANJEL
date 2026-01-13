@@ -1,25 +1,27 @@
 {
   "format": 1,
   "restore": {
-    "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj": {}
+    "c:\\Users\\zowie\\Documents\\Project-ANJEL\\ScrcpyController.csproj": {}
   },
   "projects": {
-    "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj": {
+    "c:\\Users\\zowie\\Documents\\Project-ANJEL\\ScrcpyController.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj",
+        "projectUniqueName": "c:\\Users\\zowie\\Documents\\Project-ANJEL\\ScrcpyController.csproj",
         "projectName": "ScrcpyController",
-        "projectPath": "D:\\HOBIES\\Github\\Project-ANJEL - dev\\ScrcpyController.csproj",
-        "packagesPath": "C:\\Users\\Zowie\\.nuget\\packages\\",
-        "outputPath": "D:\\HOBIES\\Github\\Project-ANJEL - dev\\obj\\",
+        "projectPath": "c:\\Users\\zowie\\Documents\\Project-ANJEL\\ScrcpyController.csproj",
+        "packagesPath": "C:\\Users\\zowie\\.nuget\\packages\\",
+        "outputPath": "c:\\Users\\zowie\\Documents\\Project-ANJEL\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Zowie\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\zowie\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0-windows"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -37,7 +39,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0-windows7.0": {
@@ -46,7 +49,7 @@
             "Microsoft.NET.ILLink.Tasks": {
               "suppressParent": "All",
               "target": "Package",
-              "version": "[8.0.19, )",
+              "version": "[8.0.22, )",
               "autoReferenced": true
             },
             "Newtonsoft.Json": {
@@ -72,15 +75,15 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-              "version": "[8.0.19, 8.0.19]"
+              "version": "[8.0.22, 8.0.22]"
             },
             {
               "name": "Microsoft.NETCore.App.Runtime.win-x64",
-              "version": "[8.0.19, 8.0.19]"
+              "version": "[8.0.22, 8.0.22]"
             },
             {
               "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
-              "version": "[8.0.19, 8.0.19]"
+              "version": "[8.0.22, 8.0.22]"
             }
           ],
           "frameworkReferences": {
@@ -91,7 +94,7 @@
               "privateAssets": "none"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.413/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {

@@ -1,0 +1,2 @@
+c:\Users\zowie\Documents\Project-ANJEL\bin\Release\net8.0-windows\win-x64\publish\ScrcpyController.pdb
+c:\Users\zowie\Documents\Project-ANJEL\bin\Release\net8.0-windows\win-x64\publish\ScrcpyController.exe

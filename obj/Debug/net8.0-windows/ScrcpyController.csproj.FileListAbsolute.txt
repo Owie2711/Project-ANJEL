@@ -17,3 +17,43 @@ d:\HOBIES\Github\Project-ANJEL - dev\obj\Debug\net8.0-windows\refint\ScrcpyContr
 d:\HOBIES\Github\Project-ANJEL - dev\obj\Debug\net8.0-windows\ScrcpyController.pdb
 d:\HOBIES\Github\Project-ANJEL - dev\obj\Debug\net8.0-windows\ScrcpyController.genruntimeconfig.cache
 d:\HOBIES\Github\Project-ANJEL - dev\obj\Debug\net8.0-windows\ref\ScrcpyController.dll
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.exe
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.deps.json
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.runtimeconfig.json
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.dll
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.pdb
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\Newtonsoft.Json.dll
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\System.Management.dll
+d:\HOBIES\Github\Project-ANJEL\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.Management.dll
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.csproj.AssemblyReference.cache
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.GeneratedMSBuildEditorConfig.editorconfig
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.AssemblyInfoInputs.cache
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.AssemblyInfo.cs
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.csproj.CoreCompileInputs.cache
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.sourcelink.json
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyCo.76C671E7.Up2Date
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.dll
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\refint\ScrcpyController.dll
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.pdb
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.genruntimeconfig.cache
+d:\HOBIES\Github\Project-ANJEL\obj\Debug\net8.0-windows\ref\ScrcpyController.dll
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.exe
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.deps.json
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.runtimeconfig.json
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.dll
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\ScrcpyController.pdb
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\Newtonsoft.Json.dll
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\System.Management.dll
+C:\Users\zowie\Documents\Project-ANJEL\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.Management.dll
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.csproj.AssemblyReference.cache
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.AssemblyInfoInputs.cache
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.AssemblyInfo.cs
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.csproj.CoreCompileInputs.cache
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.sourcelink.json
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyCo.76C671E7.Up2Date
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.dll
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\refint\ScrcpyController.dll
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.pdb
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ScrcpyController.genruntimeconfig.cache
+C:\Users\zowie\Documents\Project-ANJEL\obj\Debug\net8.0-windows\ref\ScrcpyController.dll
