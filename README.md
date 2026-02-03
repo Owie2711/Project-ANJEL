@@ -1,1 +1,1 @@
-A GUI for SCRCPY
+Project-ANJEL provides a lightweight and user-friendly UI for SCRCPY (https://github.com/Genymobile/scrcpy). No need to type commands — just launch, configure, and enjoy smooth Android mirroring and recording with high FPS, high bitrate, fullscreen, and audio support.
