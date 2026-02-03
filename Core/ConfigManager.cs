@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using System.Reflection;
+using System.ComponentModel;
 
 namespace ScrcpyController.Core
 {
@@ -14,6 +15,7 @@ namespace ScrcpyController.Core
         private readonly List<Action<string, object?>> _changeListeners;
         private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
         private volatile bool _isSaving = false;
+        private readonly PropertyChangedEventHandler? _propertyChangedHandler;
         private bool _disposed = false;
 
         public AppConfig Config => _config;
@@ -28,22 +30,36 @@ namespace ScrcpyController.Core
             SetupDefaultValidators();
             
             // Listen to property changes for auto-save
-            _config.PropertyChanged += async (sender, e) =>
+            _propertyChangedHandler = new PropertyChangedEventHandler((sender, e) =>
             {
-                if (!string.IsNullOrEmpty(e.PropertyName) && !_isSaving)
+                if (string.IsNullOrEmpty(e.PropertyName))
+                    return;
+
+                try
                 {
-                    try
+                    var value = GetConfigValue(e.PropertyName);
+                    NotifyChangeListeners(e.PropertyName, value);
+
+                    // Queue save without blocking the event thread; handle exceptions inside the task
+                    _ = Task.Run(async () =>
                     {
-                        var value = GetConfigValue(e.PropertyName);
-                        NotifyChangeListeners(e.PropertyName, value);
-                        await SaveConfigAsync(); // Auto-save with proper async handling
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Error in auto-save: {ex.Message}");
-                    }
+                        try
+                        {
+                            await SaveConfigAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error in auto-save task: {ex.Message}");
+                        }
+                    });
                 }
-            };
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error handling PropertyChanged: {ex.Message}");
+                }
+            });
+
+            _config.PropertyChanged += _propertyChangedHandler;
         }
 
         private void SetupDefaultValidators()
@@ -131,8 +147,10 @@ namespace ScrcpyController.Core
         public async Task<bool> SaveConfigAsync()
         {
             // Prevent concurrent saves and avoid recursive calls
-            if (_isSaving || !await _saveSemaphore.WaitAsync(100))
+            if (_isSaving)
                 return false;
+
+            await _saveSemaphore.WaitAsync();
 
             try
             {
@@ -254,12 +272,23 @@ namespace ScrcpyController.Core
 
             try
             {
+                // Unsubscribe from PropertyChanged to avoid callbacks during/after disposal
+                try
+                {
+                    if (_propertyChangedHandler != null && _config != null)
+                        _config.PropertyChanged -= _propertyChangedHandler;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error unsubscribing PropertyChanged: {ex.Message}");
+                }
+
                 // Save config one final time
-                SaveConfig();
-                
+                try { SaveConfig(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Error saving config during dispose: {ex.Message}"); }
+
                 // Dispose semaphore
                 _saveSemaphore?.Dispose();
-                
+
                 // Clear listeners
                 _changeListeners?.Clear();
                 _validators?.Clear();

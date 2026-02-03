@@ -71,6 +71,14 @@ namespace ScrcpyController.Core
             set { _audioSource = value; OnPropertyChanged(); }
         }
 
+        private bool _audioDuplicationEnabled = false;
+        [JsonProperty("audio_duplication_enabled")]
+        public bool AudioDuplicationEnabled
+        {
+            get => _audioDuplicationEnabled;
+            set { _audioDuplicationEnabled = value; OnPropertyChanged(); }
+        }
+
         // Connection settings
         [JsonProperty("auto_reconnect_enabled")]
         public bool AutoReconnectEnabled

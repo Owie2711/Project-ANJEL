@@ -191,7 +191,7 @@ namespace ScrcpyController.UI
                     MessageBox.Show($"Error running adb: {ex.Message}", "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        private NumericUpDown _framerateNumericUpDown = null!;
+        private NoArrowNumericUpDown _framerateNumericUpDown = null!;
         private CheckBox _fullscreenCheckBox = null!;
         private CheckBox _autoReconnectCheckBox = null!;
         private CheckBox _noControlCheckBox = null!;
@@ -306,7 +306,7 @@ namespace ScrcpyController.UI
             int portRowY = 100; // Move port row lower for more space
             int groupWidth = _deviceGroupBox.Size.Width;
             int labelWidth = 110;
-            int textWidth = 70;
+            int textWidth = (int)(70 * 1.2 * 1.2); // increase input width by additional 20% (total ~44%)
             int buttonWidth = 110;
             int spacing = 8;
             int totalWidth = labelWidth + spacing + textWidth + spacing + buttonWidth;
@@ -390,22 +390,14 @@ namespace ScrcpyController.UI
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
-            // Resolution section
+            // Resolution section (combo only; label removed)
             // Margin atas agar tidak terpotong
             int marginTop = 40;
             int spacingY = 20;
-            // Resolution (label dan ComboBox) satu baris sendiri
-            _resolutionLabel = new Label
-            {
-                Text = "Resolution",
-                Location = new Point(20, marginTop),
-                Size = new Size(100, 20),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
+            // Center the resolution combo box within the group (group width = 340)
             _resolutionComboBox = new ComboBox
             {
-                Location = new Point(130, marginTop),
+                Location = new Point(65, marginTop), // centered: (340 - 210) / 2 = 65
                 Size = new Size(210, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 DrawMode = DrawMode.OwnerDrawFixed
@@ -438,7 +430,7 @@ namespace ScrcpyController.UI
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            _framerateNumericUpDown = new NumericUpDown
+            _framerateNumericUpDown = new NoArrowNumericUpDown
             {
                 Location = new Point(280, bitrateRowY),
                 Size = new Size(60, 23),
@@ -481,7 +473,7 @@ namespace ScrcpyController.UI
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
-            _framerateNumericUpDown = new NumericUpDown
+            _framerateNumericUpDown = new NoArrowNumericUpDown
             {
                 Location = new Point(220, 105),
                 Size = new Size(60, 23),
@@ -493,43 +485,37 @@ namespace ScrcpyController.UI
                 Padding = new Padding(0)
             };
 
-            // Hide the up-down arrows completely
-            if (_framerateNumericUpDown.Controls.Count > 0)
+            // Ensure the inner TextBox is centered and sized to the NumericUpDown client area
+            _framerateNumericUpDown.HandleCreated += (s, e) =>
             {
-                var buttons = _framerateNumericUpDown.Controls[0];
-                buttons.Size = new Size(0, 0);
-                buttons.Visible = false;
-                buttons.Enabled = false;
-            }
-
-            // Ensure proper text centering with layout event
-            _framerateNumericUpDown.Layout += (s, e) =>
-            {
-                // Hide buttons again in case they reappear
-                if (_framerateNumericUpDown.Controls.Count > 0)
+                try
                 {
-                    var btns = _framerateNumericUpDown.Controls[0];
-                    btns.Size = new Size(0, 0);
-                    btns.Visible = false;
-                    btns.Enabled = false;
+                    var tb = _framerateNumericUpDown.Controls.OfType<TextBox>().FirstOrDefault();
+                    if (tb != null)
+                    {
+                        tb.TextAlign = HorizontalAlignment.Center;
+                        tb.Location = new Point(0, 0);
+                        tb.Size = new Size(_framerateNumericUpDown.ClientSize.Width, _framerateNumericUpDown.ClientSize.Height);
+                        tb.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
+                        tb.Margin = new Padding(0);
+                        tb.Padding = new Padding(0);
+                    }
                 }
-
-                // Position the TextBox to take full client area with precise centering
-                if (_framerateNumericUpDown.Controls.Count > 1 && _framerateNumericUpDown.Controls[1] is TextBox tb)
-                {
-                    tb.TextAlign = HorizontalAlignment.Center;
-                    tb.Location = new Point(0, 0);
-                    tb.Size = new Size(_framerateNumericUpDown.ClientSize.Width, _framerateNumericUpDown.ClientSize.Height);
-                    tb.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
-                    tb.Margin = new Padding(0);
-                    tb.Padding = new Padding(0);
-                    // Force the text box to redraw with centered text
-                    tb.Invalidate();
-                }
+                catch { }
             };
 
-            // Force initial layout
-            _framerateNumericUpDown.PerformLayout();
+            _framerateNumericUpDown.Resize += (s, e) =>
+            {
+                try
+                {
+                    var tb = _framerateNumericUpDown.Controls.OfType<TextBox>().FirstOrDefault();
+                    if (tb != null)
+                    {
+                        tb.Size = new Size(_framerateNumericUpDown.ClientSize.Width, _framerateNumericUpDown.ClientSize.Height);
+                    }
+                }
+                catch { }
+            };
 
             _framerateNumericUpDown.ValueChanged += FramerateNumericUpDown_ValueChanged;
 
@@ -560,7 +546,7 @@ namespace ScrcpyController.UI
             _videoGroupBox.Controls.AddRange(new Control[]
             {
                 _bitrateLabel, _bitrateTextBox, _framerateLabel, _framerateNumericUpDown,
-                _resolutionLabel, _resolutionComboBox,
+                _resolutionComboBox,
                 _fullscreenCheckBox, _autoReconnectCheckBox, _noControlCheckBox
             });
 
@@ -593,7 +579,7 @@ namespace ScrcpyController.UI
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 DrawMode = DrawMode.OwnerDrawFixed
             };
-            _audioComboBox.Items.AddRange(new[] { "Audio Playback", "Microphone", "No audio" });
+            _audioComboBox.Items.AddRange(new[] { "Audio Playback", "Audio Playback Duplication", "Microphone", "No audio" });
             _audioComboBox.SelectedIndex = 0;
             _audioComboBox.DrawItem += ComboBox_DrawItem;
             _audioComboBox.SelectedIndexChanged += AudioComboBox_SelectedIndexChanged;
@@ -690,17 +676,25 @@ namespace ScrcpyController.UI
                 // Set audio source safely
                 if (_audioComboBox != null)
                 {
-                    int audioIndex = (config.AudioSource ?? "Audio Playback") switch
-                    {
-                        "Audio Playback" => 0,
-                        "Microphone" => 1,
-                        "No audio" => 2,
-                        _ => 0
-                    };
-                    
-                    // Ensure index is within bounds
-                    if (audioIndex >= 0 && audioIndex < _audioComboBox.Items.Count)
-                        _audioComboBox.SelectedIndex = audioIndex;
+                        // Determine audio selection and duplication
+                        int audioIndex = 0;
+                        if (config.AudioDuplicationEnabled)
+                        {
+                            audioIndex = _audioComboBox.Items.IndexOf("Audio Playback Duplication");
+                        }
+                        else
+                        {
+                            audioIndex = (config.AudioSource ?? "Audio Playback") switch
+                            {
+                                "Audio Playback" => _audioComboBox.Items.IndexOf("Audio Playback"),
+                                "Microphone" => _audioComboBox.Items.IndexOf("Microphone"),
+                                "No audio" => _audioComboBox.Items.IndexOf("No audio"),
+                                _ => _audioComboBox.Items.IndexOf("Audio Playback")
+                            };
+                        }
+
+                        if (audioIndex >= 0 && audioIndex < _audioComboBox.Items.Count)
+                            _audioComboBox.SelectedIndex = audioIndex;
                 }
 
                 // Configure auto-reconnect safely
@@ -1092,7 +1086,16 @@ namespace ScrcpyController.UI
                     var selectedAudio = _audioComboBox.SelectedItem.ToString();
                     if (!string.IsNullOrEmpty(selectedAudio))
                     {
-                        _configManager.Set("AudioSource", selectedAudio);
+                        if (selectedAudio == "Audio Playback Duplication")
+                        {
+                            _configManager.Set("AudioSource", "Audio Playback");
+                            _configManager.Set("AudioDuplicationEnabled", true);
+                        }
+                        else
+                        {
+                            _configManager.Set("AudioSource", selectedAudio);
+                            _configManager.Set("AudioDuplicationEnabled", false);
+                        }
                     }
                 }
             }
@@ -1174,6 +1177,17 @@ namespace ScrcpyController.UI
                     AudioSource = audioSourceInternal
                 };
 
+                // Add audio duplication argument if enabled in configuration
+                try
+                {
+                    if (_configManager.Config.AudioDuplicationEnabled)
+                        config.AdditionalArgs.Add("--audio-dup");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error applying audio duplication flag: {ex.Message}");
+                }
+
                 // Check if skip process check is enabled
                 bool skipCheck = _configManager.Config.SkipProcessCheck;
 
@@ -1210,6 +1224,17 @@ namespace ScrcpyController.UI
                             AudioSource = audioSourceInternal
                         };
 
+                        // Add audio duplication argument if enabled in configuration
+                        try
+                        {
+                            if (_configManager.Config.AudioDuplicationEnabled)
+                                config.AdditionalArgs.Add("--audio-dup");
+                        }
+                        catch (Exception dbgEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error applying audio duplication flag: {dbgEx.Message}");
+                        }
+
                         await _processManager.StartProcessAsync(config, forceStart: true);
                     }
                     catch (Exception forceEx)
@@ -1236,6 +1261,17 @@ namespace ScrcpyController.UI
                             VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
                             AudioSource = audioSourceInternal
                         };
+
+                        // Add audio duplication argument if enabled in configuration
+                        try
+                        {
+                            if (_configManager.Config.AudioDuplicationEnabled)
+                                config.AdditionalArgs.Add("--audio-dup");
+                        }
+                        catch (Exception dbgEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error applying audio duplication flag: {dbgEx.Message}");
+                        }
 
                         await _processManager.StartProcessAsync(config, skipProcessCheck: true);
                     }

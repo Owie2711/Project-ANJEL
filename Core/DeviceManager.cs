@@ -393,25 +393,29 @@ namespace ScrcpyController.Core
             return _currentDevices.Any(d => d.DeviceId == deviceId && d.IsConnected);
         }
 
-        private async void MonitorDevices(object? state)
+        private void MonitorDevices(object? state)
         {
             if (!_isMonitoring)
                 return;
 
-            try
+            // Schedule the refresh on a background task to avoid async void and capture exceptions
+            Task.Run(async () =>
             {
-                await RefreshDevicesAsync();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Timer was disposed - stop monitoring
-                _isMonitoring = false;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in device monitoring: {ex.Message}");
-                // Continue monitoring even after errors - don't stop the timer
-            }
+                try
+                {
+                    await RefreshDevicesAsync();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Timer was disposed - stop monitoring
+                    _isMonitoring = false;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in device monitoring: {ex.Message}");
+                    // Continue monitoring even after errors - don't stop the timer
+                }
+            });
         }
 
         private void NotifyDeviceChanges(HashSet<DeviceInfo> oldDevices, HashSet<DeviceInfo> newDevices)

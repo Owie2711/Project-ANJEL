@@ -274,6 +274,7 @@ namespace ScrcpyController.Core
         private ProcessStatus _status;
         private readonly ScrcpyConfig _config;
         private CancellationTokenSource? _monitorCancellation;
+        private readonly System.Threading.SemaphoreSlim _lifecycleLock = new System.Threading.SemaphoreSlim(1, 1);
 
         public ProcessStatus Status => _status;
         public ScrcpyConfig Config => _config;
@@ -286,16 +287,17 @@ namespace ScrcpyController.Core
             _status = ProcessStatus.Stopped;
         }
 
-        public Task<bool> StartAsync()
+        public async Task<bool> StartAsync()
         {
-            if (_status != ProcessStatus.Stopped)
-                return Task.FromResult(false);
-
+            await _lifecycleLock.WaitAsync().ConfigureAwait(false);
             try
             {
+                if (_status != ProcessStatus.Stopped)
+                    return false;
+
                 _status = ProcessStatus.Starting;
                 var args = _config.ToCommandArgs();
-                
+
                 Debug.WriteLine($"Starting scrcpy with command: {string.Join(" ", args)}");
 
                 var startInfo = new ProcessStartInfo
@@ -309,7 +311,7 @@ namespace ScrcpyController.Core
                 };
 
                 _process = Process.Start(startInfo);
-                
+
                 if (_process != null)
                 {
                     Debug.WriteLine($"Scrcpy process started with PID: {_process.Id}");
@@ -319,12 +321,12 @@ namespace ScrcpyController.Core
                     _monitorCancellation = new CancellationTokenSource();
                     _ = Task.Run(() => MonitorProcess(_monitorCancellation.Token));
 
-                    return Task.FromResult(true);
+                    return true;
                 }
                 else
                 {
                     _status = ProcessStatus.Error;
-                    return Task.FromResult(false);
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -333,27 +335,31 @@ namespace ScrcpyController.Core
                 Debug.WriteLine($"Error starting scrcpy: {ex.Message}");
                 throw;
             }
+            finally
+            {
+                _lifecycleLock.Release();
+            }
         }
 
-        public bool Start()
-        {
-            return StartAsync().GetAwaiter().GetResult();
-        }
+        // Synchronous Start() removed to avoid blocking callers; use StartAsync() instead.
 
         public async Task<bool> StopAsync(int timeoutMs = 5000)
         {
-            if (_status != ProcessStatus.Running && _status != ProcessStatus.Reconnecting)
-                return true;
+            await _lifecycleLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_status != ProcessStatus.Running && _status != ProcessStatus.Reconnecting)
+                    return true;
 
-            _status = ProcessStatus.Stopping;
-            _monitorCancellation?.Cancel();
+                _status = ProcessStatus.Stopping;
+                _monitorCancellation?.Cancel();
 
-            return await CleanupProcessAsync(timeoutMs);
-        }
-
-        public bool Stop(int timeoutMs = 5000)
-        {
-            return StopAsync(timeoutMs).GetAwaiter().GetResult();
+                return await CleanupProcessAsync(timeoutMs).ConfigureAwait(false);
+            }
+            finally
+            {
+                _lifecycleLock.Release();
+            }
         }
 
         public bool IsRunning()
@@ -706,6 +712,7 @@ namespace ScrcpyController.Core
         private readonly List<IProcessEventListener> _listeners;
         private readonly AutoReconnectManager _autoReconnect;
         private readonly Func<string, bool> _deviceChecker;
+        private readonly System.Threading.SemaphoreSlim _managerLock = new System.Threading.SemaphoreSlim(1, 1);
 
         public ProcessStatus Status => _status;
         public bool IsRunning => _currentProcess?.IsRunning() == true && _status == ProcessStatus.Running;
@@ -743,116 +750,124 @@ namespace ScrcpyController.Core
 
         public async Task<bool> StartProcessAsync(ScrcpyConfig config, bool forceStart = false, bool skipProcessCheck = false)
         {
-            if (_status != ProcessStatus.Stopped)
-                return false;
-
-            // Check for existing system processes (unless skipped)
-            if (!skipProcessCheck && SystemProcessChecker.HasRunningScrcpy())
-            {
-                if (forceStart)
-                {
-                    Debug.WriteLine("Force start enabled - killing existing scrcpy processes...");
-                    int killedCount = SystemProcessChecker.KillExistingScrcpyProcesses();
-                    if (killedCount > 0)
-                    {
-                        Debug.WriteLine($"Killed {killedCount} existing scrcpy process(es)");
-                        await Task.Delay(1000); // Wait for cleanup
-                    }
-                }
-                else
-                {
-                    var existingProcesses = SystemProcessChecker.GetScrcpyProcesses();
-                    int processCount = existingProcesses.Count;
-                    
-                    Debug.WriteLine($"Process detection found {processCount} scrcpy processes: {string.Join(", ", existingProcesses)}");
-                    
-                    string errorMsg = processCount > 0 
-                        ? $"Another scrcpy session is already running (Found {processCount} process(es)). Please close any existing scrcpy windows and try again."
-                        : "Process detection indicates scrcpy is running, but no processes were found. Try restarting the application.";
-                    
-                    throw new InvalidOperationException(errorMsg);
-                }
-            }
-
+            await _managerLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                _currentConfig = config;
-                _currentProcess = new ScrcpyProcess(config);
-                
-                // Subscribe to process events
-                _currentProcess.ProcessExited += OnCurrentProcessExited;
-                
-                if (await _currentProcess.StartAsync())
+                if (_status != ProcessStatus.Stopped)
+                    return false;
+
+                // Check for existing system processes (unless skipped)
+                if (!skipProcessCheck && SystemProcessChecker.HasRunningScrcpy())
                 {
-                    _status = ProcessStatus.Running;
-                    
-                    // Notify listeners
-                    NotifyListeners(l => l.OnProcessStarted(config));
-                    ProcessStarted?.Invoke(this, config);
-                    
-                    // Always start monitoring for process lifecycle
-                    StartProcessMonitoring();
-                    
-                    return true;
+                    if (forceStart)
+                    {
+                        Debug.WriteLine("Force start enabled - killing existing scrcpy processes...");
+                        int killedCount = SystemProcessChecker.KillExistingScrcpyProcesses();
+                        if (killedCount > 0)
+                        {
+                            Debug.WriteLine($"Killed {killedCount} existing scrcpy process(es)");
+                            await Task.Delay(1000).ConfigureAwait(false); // Wait for cleanup
+                        }
+                    }
+                    else
+                    {
+                        var existingProcesses = SystemProcessChecker.GetScrcpyProcesses();
+                        int processCount = existingProcesses.Count;
+                        
+                        Debug.WriteLine($"Process detection found {processCount} scrcpy processes: {string.Join(", ", existingProcesses)}");
+                        
+                        string errorMsg = processCount > 0 
+                            ? $"Another scrcpy session is already running (Found {processCount} process(es)). Please close any existing scrcpy windows and try again."
+                            : "Process detection indicates scrcpy is running, but no processes were found. Try restarting the application.";
+                        
+                        throw new InvalidOperationException(errorMsg);
+                    }
                 }
-                else
+
+                try
                 {
-                    _currentProcess.Dispose();
+                    _currentConfig = config;
+                    _currentProcess = new ScrcpyProcess(config);
+                    
+                    // Subscribe to process events
+                    _currentProcess.ProcessExited += OnCurrentProcessExited;
+                    
+                    if (await _currentProcess.StartAsync().ConfigureAwait(false))
+                    {
+                        _status = ProcessStatus.Running;
+                        
+                        // Notify listeners
+                        NotifyListeners(l => l.OnProcessStarted(config));
+                        ProcessStarted?.Invoke(this, config);
+                        
+                        // Always start monitoring for process lifecycle
+                        StartProcessMonitoring();
+                        
+                        return true;
+                    }
+                    else
+                    {
+                        _currentProcess.Dispose();
+                        _currentProcess = null;
+                        _currentConfig = null;
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _status = ProcessStatus.Error;
+                    _currentProcess?.Dispose();
                     _currentProcess = null;
                     _currentConfig = null;
-                    return false;
+                    
+                    // Notify listeners
+                    NotifyListeners(l => l.OnProcessError(ex));
+                    ProcessError?.Invoke(this, ex);
+                    
+                    throw;
                 }
             }
-            catch (Exception ex)
+            finally
             {
-                _status = ProcessStatus.Error;
-                _currentProcess?.Dispose();
-                _currentProcess = null;
-                _currentConfig = null;
-                
-                // Notify listeners
-                NotifyListeners(l => l.OnProcessError(ex));
-                ProcessError?.Invoke(this, ex);
-                
-                throw;
+                _managerLock.Release();
             }
         }
 
-        public bool StartProcess(ScrcpyConfig config, bool forceStart = false, bool skipProcessCheck = false)
-        {
-            return StartProcessAsync(config, forceStart, skipProcessCheck).GetAwaiter().GetResult();
-        }
+        // Synchronous wrapper intentionally removed to avoid blocking the caller.
 
         public async Task<bool> StopProcessAsync()
         {
-            _autoReconnect.StopReconnecting();
-            
-            bool success = true;
-            int? exitCode = null;
-            
-            if (_currentProcess != null)
+            await _managerLock.WaitAsync().ConfigureAwait(false);
+            try
             {
-                exitCode = _currentProcess.GetExitCode();
-                success = await _currentProcess.StopAsync();
-                
-                _currentProcess.ProcessExited -= OnCurrentProcessExited;
-                _currentProcess.Dispose();
-                _currentProcess = null;
-            }
-            
-            _currentConfig = null;
-            _status = ProcessStatus.Stopped;
-            
-            // Notify listeners
-            NotifyListeners(l => l.OnProcessStopped(exitCode));
-            ProcessStopped?.Invoke(this, exitCode);
-            
-            return success;
-        }
+                _autoReconnect.StopReconnecting();
 
-        public bool StopProcess()
-        {
-            return StopProcessAsync().GetAwaiter().GetResult();
+                bool success = true;
+                int? exitCode = null;
+
+                if (_currentProcess != null)
+                {
+                    exitCode = _currentProcess.GetExitCode();
+                    success = await _currentProcess.StopAsync().ConfigureAwait(false);
+
+                    _currentProcess.ProcessExited -= OnCurrentProcessExited;
+                    _currentProcess.Dispose();
+                    _currentProcess = null;
+                }
+
+                _currentConfig = null;
+                _status = ProcessStatus.Stopped;
+
+                // Notify listeners
+                NotifyListeners(l => l.OnProcessStopped(exitCode));
+                ProcessStopped?.Invoke(this, exitCode);
+
+                return success;
+            }
+            finally
+            {
+                _managerLock.Release();
+            }
         }
 
         private void OnCurrentProcessExited(object? sender, int exitCode)
@@ -894,75 +909,83 @@ namespace ScrcpyController.Core
 
         private async Task<bool> AttemptRestartAsync()
         {
-            if (_currentConfig == null)
-                return false;
-
+            await _managerLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                // Clean up current process
-                if (_currentProcess != null)
+                if (_currentConfig == null)
+                    return false;
+
+                try
                 {
+                    // Clean up current process
+                    if (_currentProcess != null)
+                    {
+                        try
+                        {
+                            await _currentProcess.StopAsync().ConfigureAwait(false);
+                            _currentProcess.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error stopping current process: {ex.Message}");
+                        }
+                    }
+
+                    // Kill any existing scrcpy processes before restarting
                     try
                     {
-                        await _currentProcess.StopAsync();
-                        _currentProcess.Dispose();
+                        if (SystemProcessChecker.HasRunningScrcpy())
+                        {
+                            int killedCount = SystemProcessChecker.KillExistingScrcpyProcesses();
+                            if (killedCount > 0)
+                            {
+                                Debug.WriteLine($"Auto-reconnect: Killed {killedCount} existing process(es)");
+                                await Task.Delay(1000).ConfigureAwait(false); // Wait for cleanup
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Error stopping current process: {ex.Message}");
+                        Debug.WriteLine($"Error cleaning up processes: {ex.Message}");
                     }
-                }
 
-                // Kill any existing scrcpy processes before restarting
-                try
-                {
-                    if (SystemProcessChecker.HasRunningScrcpy())
+                    // Start new process
+                    try
                     {
-                        int killedCount = SystemProcessChecker.KillExistingScrcpyProcesses();
-                        if (killedCount > 0)
+                        _currentProcess = new ScrcpyProcess(_currentConfig);
+                        _currentProcess.ProcessExited += OnCurrentProcessExited;
+                        
+                        if (await _currentProcess.StartAsync().ConfigureAwait(false))
                         {
-                            Debug.WriteLine($"Auto-reconnect: Killed {killedCount} existing process(es)");
-                            await Task.Delay(1000); // Wait for cleanup
+                            _status = ProcessStatus.Running;
+                            
+                            // Notify listeners that process restarted
+                            NotifyListeners(l => l.OnProcessStarted(_currentConfig));
+                            ProcessStarted?.Invoke(this, _currentConfig);
+                            
+                            return true;
+                        }
+                        else
+                        {
+                            Debug.WriteLine("Failed to start new process");
+                            return false;
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error cleaning up processes: {ex.Message}");
-                }
-
-                // Start new process
-                try
-                {
-                    _currentProcess = new ScrcpyProcess(_currentConfig);
-                    _currentProcess.ProcessExited += OnCurrentProcessExited;
-                    
-                    if (await _currentProcess.StartAsync())
+                    catch (Exception ex)
                     {
-                        _status = ProcessStatus.Running;
-                        
-                        // Notify listeners that process restarted
-                        NotifyListeners(l => l.OnProcessStarted(_currentConfig));
-                        ProcessStarted?.Invoke(this, _currentConfig);
-                        
-                        return true;
-                    }
-                    else
-                    {
-                        Debug.WriteLine("Failed to start new process");
+                        Debug.WriteLine($"Error starting new process: {ex.Message}");
                         return false;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error starting new process: {ex.Message}");
+                    Debug.WriteLine($"Error restarting process: {ex.Message}");
                     return false;
                 }
             }
-            catch (Exception ex)
+            finally
             {
-                Debug.WriteLine($"Error restarting process: {ex.Message}");
-                return false;
+                _managerLock.Release();
             }
         }
 
