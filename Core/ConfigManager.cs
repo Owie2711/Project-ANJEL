@@ -76,20 +76,23 @@ namespace ScrcpyController.Core
 
         public string GetConfigPath()
         {
-            string appDir;
-            
-            if (Application.ExecutablePath != null)
+            // Prefer per-user application data folder to avoid permission issues
+            try
             {
-                // Running as compiled executable
-                appDir = Path.GetDirectoryName(Application.ExecutablePath) ?? Environment.CurrentDirectory;
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string baseDir = Path.Combine(appData, "ScrcpyController");
+                if (!Directory.Exists(baseDir))
+                {
+                    Directory.CreateDirectory(baseDir);
+                }
+
+                return Path.Combine(baseDir, _configFileName);
             }
-            else
+            catch
             {
-                // Running in development
-                appDir = Environment.CurrentDirectory;
+                // Fallback to current directory if AppData is unavailable
+                return Path.Combine(Environment.CurrentDirectory, _configFileName);
             }
-            
-            return Path.Combine(appDir, _configFileName);
         }
 
         public bool LoadConfig()
@@ -108,9 +111,39 @@ namespace ScrcpyController.Core
                         // Validate loaded configuration
                         if (ValidateConfig(loadedConfig))
                         {
-                            _config = loadedConfig;
-                            System.Diagnostics.Debug.WriteLine("Configuration loaded and validated successfully");
-                            return true;
+                            try
+                            {
+                                // Temporarily detach PropertyChanged handler to avoid triggering auto-save
+                                if (_propertyChangedHandler != null && _config != null)
+                                    _config.PropertyChanged -= _propertyChangedHandler;
+
+                                // Copy public writable properties from loadedConfig into the existing _config instance
+                                var props = typeof(AppConfig).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                                foreach (var prop in props)
+                                {
+                                    if (!prop.CanWrite) continue;
+                                    var val = prop.GetValue(loadedConfig);
+                                    try
+                                    {
+                                        prop.SetValue(_config, val);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Error applying config property {prop.Name}: {ex.Message}");
+                                    }
+                                }
+
+                                // Reattach PropertyChanged handler
+                                if (_propertyChangedHandler != null && _config != null)
+                                    _config.PropertyChanged += _propertyChangedHandler;
+
+                                System.Diagnostics.Debug.WriteLine("Configuration loaded and validated successfully");
+                                return true;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Error applying loaded configuration: {ex.Message}");
+                            }
                         }
                         else
                         {

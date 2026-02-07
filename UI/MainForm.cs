@@ -30,8 +30,12 @@ namespace ScrcpyController.UI
             // Video settings
             if (_bitrateTextBox != null)
                 _configManager.Set("Bitrate", _bitrateTextBox.Text);
-            if (_framerateNumericUpDown != null)
-                _configManager.Set("Framerate", (int)_framerateNumericUpDown.Value);
+            if (_framerateTextBox != null)
+            {
+                if (!int.TryParse(_framerateTextBox.Text, out int f)) f = 60;
+                f = Math.Max(1, Math.Min(240, f));
+                _configManager.Set("Framerate", f);
+            }
             if (_fullscreenCheckBox != null)
                 _configManager.Set("FullscreenEnabled", _fullscreenCheckBox.Checked);
             if (_noControlCheckBox != null)
@@ -144,6 +148,8 @@ namespace ScrcpyController.UI
         private Label _bitrateLabel = null!;
         private TextBox _bitrateTextBox = null!;
         private Label _framerateLabel = null!;
+        private TextBox _framerateTextBox = null!;
+        
             // Event handler untuk tombol Set port number
             private void SetPortButton_Click(object? sender, EventArgs e)
             {
@@ -191,7 +197,7 @@ namespace ScrcpyController.UI
                     MessageBox.Show($"Error running adb: {ex.Message}", "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-        private NoArrowNumericUpDown _framerateNumericUpDown = null!;
+        
         private CheckBox _fullscreenCheckBox = null!;
         private CheckBox _autoReconnectCheckBox = null!;
         private CheckBox _noControlCheckBox = null!;
@@ -386,7 +392,7 @@ namespace ScrcpyController.UI
             {
                 Text = "Video Settings",
                 Location = new Point(20, 200), // Center horizontally below device section
-                Size = new Size(340, 210), // Match device section width
+                Size = new Size(340, 300), // Increased height to fit labels above inputs and checkboxes
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -403,149 +409,98 @@ namespace ScrcpyController.UI
                 DrawMode = DrawMode.OwnerDrawFixed
             };
 
-            // Bitrate dan Max FPS di satu baris, di bawah Resolution
+            // Bitrate and Max FPS on the same row, with labels above inputs, centered within group
             int bitrateRowY = marginTop + 35 + spacingY;
+            int labelHeight = 16;
+            int inputY = bitrateRowY + labelHeight + 6;
+            int inputWidth = 80;
+            int spacingX = 40; // space between the two input columns
+            int totalWidth = inputWidth * 2 + spacingX;
+            int startX = (_videoGroupBox.Size.Width - totalWidth) / 2;
+            int bitrateLabelWidth = 120; // wider so "Bitrate (Mbps)" fits
+            int bitrateLabelX = startX - (bitrateLabelWidth - inputWidth) / 2;
+
+            // Bitrate: label above textbox, centered to the textbox width
             _bitrateLabel = new Label
             {
                 Text = "Bitrate (Mbps)",
-                Location = new Point(20, bitrateRowY),
-                Size = new Size(100, 20),
-                TextAlign = ContentAlignment.MiddleLeft
+                Location = new Point(bitrateLabelX, bitrateRowY),
+                Size = new Size(bitrateLabelWidth, labelHeight),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 9, FontStyle.Regular)
             };
 
             _bitrateTextBox = new TextBox
             {
-                Location = new Point(130, bitrateRowY),
-                Size = new Size(60, 23),
+                Location = new Point(startX, inputY),
+                Size = new Size(inputWidth, 26),
                 Text = "20",
-                TextAlign = HorizontalAlignment.Center
+                TextAlign = HorizontalAlignment.Center,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", 9)
             };
             _bitrateTextBox.TextChanged += BitrateTextBox_TextChanged;
 
+
+            // Max FPS: label above textbox, centered to the textbox width
             _framerateLabel = new Label
             {
                 Text = "Max FPS",
-                Location = new Point(210, bitrateRowY),
-                Size = new Size(60, 20),
-                TextAlign = ContentAlignment.MiddleLeft
+                Location = new Point(startX + inputWidth + spacingX - (inputWidth / 4), bitrateRowY),
+                Size = new Size(inputWidth + (inputWidth / 2), labelHeight),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 9, FontStyle.Regular)
             };
 
-            _framerateNumericUpDown = new NoArrowNumericUpDown
+            _framerateTextBox = new TextBox
             {
-                Location = new Point(280, bitrateRowY),
-                Size = new Size(60, 23),
-                Minimum = 1,
-                Maximum = 240,
-                Value = 60,
+                Location = new Point(startX + inputWidth + spacingX + (inputWidth / 8), inputY),
+                Size = new Size(inputWidth, 26),
+                Text = "60",
                 TextAlign = HorizontalAlignment.Center,
                 BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(0)
+                Font = new Font("Segoe UI", 9)
             };
+            _framerateTextBox.KeyPress += FramerateTextBox_KeyPress;
+            _framerateTextBox.Leave += FramerateTextBox_Leave;
+
             _resolutionComboBox.Items.AddRange(new[] { "Device Resolution", "720p", "1080p", "4K" });
             _resolutionComboBox.SelectedIndex = 0;
             _resolutionComboBox.DrawItem += ComboBox_DrawItem;
             _resolutionComboBox.SelectedIndexChanged += ResolutionComboBox_SelectedIndexChanged;
-
-            // Bitrate section
-            _bitrateLabel = new Label
-            {
-                Text = "Bitrate (Mbps)",
-                Location = new Point(60, 80),
-                Size = new Size(100, 20),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            _bitrateTextBox = new TextBox
-            {
-                Location = new Point(60, 105),
-                Size = new Size(80, 23),
-                Text = "20",
-                TextAlign = HorizontalAlignment.Center
-            };
-            _bitrateTextBox.TextChanged += BitrateTextBox_TextChanged;
-
-            // Framerate section
-            _framerateLabel = new Label
-            {
-                Text = "Max FPS",
-                Location = new Point(220, 80),
-                Size = new Size(60, 20),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            _framerateNumericUpDown = new NoArrowNumericUpDown
-            {
-                Location = new Point(220, 105),
-                Size = new Size(60, 23),
-                Minimum = 1,
-                Maximum = 240,
-                Value = 60,
-                TextAlign = HorizontalAlignment.Center,
-                BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(0)
-            };
-
-            // Ensure the inner TextBox is centered and sized to the NumericUpDown client area
-            _framerateNumericUpDown.HandleCreated += (s, e) =>
-            {
-                try
-                {
-                    var tb = _framerateNumericUpDown.Controls.OfType<TextBox>().FirstOrDefault();
-                    if (tb != null)
-                    {
-                        tb.TextAlign = HorizontalAlignment.Center;
-                        tb.Location = new Point(0, 0);
-                        tb.Size = new Size(_framerateNumericUpDown.ClientSize.Width, _framerateNumericUpDown.ClientSize.Height);
-                        tb.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
-                        tb.Margin = new Padding(0);
-                        tb.Padding = new Padding(0);
-                    }
-                }
-                catch { }
-            };
-
-            _framerateNumericUpDown.Resize += (s, e) =>
-            {
-                try
-                {
-                    var tb = _framerateNumericUpDown.Controls.OfType<TextBox>().FirstOrDefault();
-                    if (tb != null)
-                    {
-                        tb.Size = new Size(_framerateNumericUpDown.ClientSize.Width, _framerateNumericUpDown.ClientSize.Height);
-                    }
-                }
-                catch { }
-            };
-
-            _framerateNumericUpDown.ValueChanged += FramerateNumericUpDown_ValueChanged;
+            // Position checkboxes below the inputs and stack them vertically
+            int checkboxY = inputY + 36;
+            int checkboxSpacingY = 28;
+            int checkboxX = startX; // align with inputs
+            int checkboxWidth = inputWidth * 2 + spacingX; // span both columns for clarity
 
             _fullscreenCheckBox = new CheckBox
             {
                 Text = "Fullscreen Mode",
-                Location = new Point(30, 130),
-                Size = new Size(120, 20)
+                Location = new Point(checkboxX, checkboxY),
+                Size = new Size(checkboxWidth, 20)
             };
             _fullscreenCheckBox.CheckedChanged += FullscreenCheckBox_CheckedChanged;
 
             _autoReconnectCheckBox = new CheckBox
             {
                 Text = "Auto Reconnect",
-                Location = new Point(160, 130),
-                Size = new Size(120, 20)
+                Location = new Point(checkboxX, checkboxY + checkboxSpacingY),
+                Size = new Size(checkboxWidth, 20)
             };
             _autoReconnectCheckBox.CheckedChanged += AutoReconnectCheckBox_CheckedChanged;
 
             _noControlCheckBox = new CheckBox
             {
                 Text = "Disable Control",
-                Location = new Point(30, 155),
-                Size = new Size(120, 20)
+                Location = new Point(checkboxX, checkboxY + checkboxSpacingY * 2),
+                Size = new Size(checkboxWidth, 20)
             };
             _noControlCheckBox.CheckedChanged += NoControlCheckBox_CheckedChanged;
 
             _videoGroupBox.Controls.AddRange(new Control[]
             {
-                _bitrateLabel, _bitrateTextBox, _framerateLabel, _framerateNumericUpDown,
+                _bitrateLabel, _bitrateTextBox, _framerateLabel, _framerateTextBox,
                 _resolutionComboBox,
                 _fullscreenCheckBox, _autoReconnectCheckBox, _noControlCheckBox
             });
@@ -558,7 +513,7 @@ namespace ScrcpyController.UI
             _audioGroupBox = new GroupBox
             {
                 Text = "Audio Settings",
-                Location = new Point(20, 420), // Center horizontally below video section
+                Location = new Point(20, _videoGroupBox.Location.Y + _videoGroupBox.Size.Height + 10), // place directly below video section
                 Size = new Size(340, 80),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -593,7 +548,7 @@ namespace ScrcpyController.UI
             _controlGroupBox = new GroupBox
             {
                 Text = "",
-                Location = new Point(20, 510), // Center horizontally below audio section
+                Location = new Point(20, _audioGroupBox.Location.Y + _audioGroupBox.Size.Height + 10), // place below audio section
                 Size = new Size(340, 120),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -654,8 +609,8 @@ namespace ScrcpyController.UI
                 if (_bitrateTextBox != null)
                     _bitrateTextBox.Text = config.Bitrate ?? "20";
                 
-                if (_framerateNumericUpDown != null)
-                    _framerateNumericUpDown.Value = Math.Max(1, Math.Min(240, config.Framerate));
+                if (_framerateTextBox != null)
+                    _framerateTextBox.Text = Math.Max(1, Math.Min(240, config.Framerate)).ToString();
                 
                 if (_fullscreenCheckBox != null)
                     _fullscreenCheckBox.Checked = config.FullscreenEnabled;
@@ -1000,18 +955,29 @@ namespace ScrcpyController.UI
             }
         }
 
-        private void FramerateNumericUpDown_ValueChanged(object? sender, EventArgs e)
+        private void FramerateTextBox_KeyPress(object? sender, KeyPressEventArgs e)
+        {
+            // Allow digits and control keys only
+            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
+            {
+                e.Handled = true;
+            }
+        }
+
+        private void FramerateTextBox_Leave(object? sender, EventArgs e)
         {
             try
             {
-                if (_configManager != null && _framerateNumericUpDown != null)
-                {
-                    _configManager.Set("Framerate", (int)_framerateNumericUpDown.Value);
-                }
+                if (_configManager == null || _framerateTextBox == null) return;
+                if (!int.TryParse(_framerateTextBox.Text, out int val))
+                    val = 60;
+                val = Math.Max(1, Math.Min(240, val));
+                _framerateTextBox.Text = val.ToString();
+                _configManager.Set("Framerate", val);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error updating framerate: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error validating framerate: {ex.Message}");
             }
         }
 
@@ -1170,7 +1136,7 @@ namespace ScrcpyController.UI
                 var config = new ScrcpyConfig(deviceId!)
                 {
                     Bitrate = $"{_bitrateTextBox.Text}M",
-                    Framerate = (int)_framerateNumericUpDown.Value,
+                    Framerate = (int.TryParse(_framerateTextBox?.Text, out var __f1) ? Math.Max(1, Math.Min(240, __f1)) : 60),
                     Fullscreen = _fullscreenCheckBox.Checked,
                     NoControl = _noControlCheckBox.Checked,
                     VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
@@ -1217,7 +1183,7 @@ namespace ScrcpyController.UI
                         var config = new ScrcpyConfig(deviceId!)
                         {
                             Bitrate = $"{_bitrateTextBox.Text}M",
-                            Framerate = (int)_framerateNumericUpDown.Value,
+                            Framerate = (int.TryParse(_framerateTextBox?.Text, out var __f2) ? Math.Max(1, Math.Min(240, __f2)) : 60),
                             Fullscreen = _fullscreenCheckBox.Checked,
                             NoControl = _noControlCheckBox.Checked,
                             VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
@@ -1255,7 +1221,7 @@ namespace ScrcpyController.UI
                         var config = new ScrcpyConfig(deviceId!)
                         {
                             Bitrate = $"{_bitrateTextBox.Text}M",
-                            Framerate = (int)_framerateNumericUpDown.Value,
+                            Framerate = (int.TryParse(_framerateTextBox?.Text, out var __f3) ? Math.Max(1, Math.Min(240, __f3)) : 60),
                             Fullscreen = _fullscreenCheckBox.Checked,
                             NoControl = _noControlCheckBox.Checked,
                             VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
@@ -1359,7 +1325,7 @@ namespace ScrcpyController.UI
             _isRunning = true;
             _startStopButton.Text = "Stop Mirror";
             _startStopButton.BackColor = Color.FromArgb(220, 38, 38);
-            _statusLabel.Text = $"Mirroring Active • Device: {config.DeviceId} • {config.Bitrate} • {config.Framerate}FPS";
+            _statusLabel.Text = $"Mirroring Active • Device: {config.DeviceId} • {config.Bitrate}";
             _statusLabel.ForeColor = Color.Green;
         }
 
@@ -1599,7 +1565,7 @@ namespace ScrcpyController.UI
                     _bitrateLabel?.Dispose();
                     _bitrateTextBox?.Dispose();
                     _framerateLabel?.Dispose();
-                    _framerateNumericUpDown?.Dispose();
+                    _framerateTextBox?.Dispose();
                     _fullscreenCheckBox?.Dispose();
                     _autoReconnectCheckBox?.Dispose();
                     _resolutionLabel?.Dispose();

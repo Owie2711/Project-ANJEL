@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -24,13 +25,18 @@ namespace ScrcpyController.UI
         {
             try
             {
-                // The up/down buttons are usually at Controls[0]
-                if (this.Controls.Count > 0)
+                // Keep the inner TextBox visible and hide other controls (up/down buttons)
+                var tb = this.Controls.OfType<TextBox>().FirstOrDefault();
+                foreach (Control c in this.Controls)
                 {
-                    var btn = this.Controls[0];
-                    btn.Visible = false;
-                    btn.Enabled = false;
-                    btn.Size = new Size(0, 0);
+                    if (c == tb) continue;
+                    try
+                    {
+                        c.Visible = false;
+                        c.Enabled = false;
+                        c.Size = new Size(0, 0);
+                    }
+                    catch { }
                 }
             }
             catch { }
@@ -44,14 +50,26 @@ namespace ScrcpyController.UI
                 if (tb != null)
                 {
                     tb.TextAlign = HorizontalAlignment.Center;
+                    tb.BorderStyle = BorderStyle.None;
+                    tb.ReadOnly = false;
+                    tb.Enabled = true;
+                    tb.Visible = true;
+                    tb.BringToFront();
+                    // Use multiline textbox sized to full client area and apply top padding
+                    tb.Multiline = true;
+                    tb.Anchor = AnchorStyles.Left | AnchorStyles.Right;
                     tb.Location = new Point(0, 0);
                     tb.Size = new Size(this.ClientSize.Width, this.ClientSize.Height);
-                    tb.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
+                    int fontHeight = tb.Font.Height; // use font height for precise centering
+                    int topPadding = Math.Max(0, (this.ClientSize.Height - fontHeight) / 2 - 1);
+                    tb.Padding = new Padding(0, topPadding, 0, 0);
                     tb.Margin = new Padding(0);
-                    tb.Padding = new Padding(0);
+                    tb.AcceptsReturn = false;
                 }
             }
             catch { }
         }
+
+        
     }
 }

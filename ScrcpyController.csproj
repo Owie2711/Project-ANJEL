@@ -23,4 +23,9 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- Exclude test files placed under the 'tests' folder from the main project globbing -->
+  <ItemGroup>
+    <Compile Remove="tests\**\*.cs" />
+  </ItemGroup>
+
 </Project>

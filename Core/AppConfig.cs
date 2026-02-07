@@ -24,7 +24,6 @@ namespace ScrcpyController.Core
             set { _deviceIpAddress = value; OnPropertyChanged(); }
         }
         private string _bitrate = "20";
-        private int _framerate = 60;
         private bool _fullscreenEnabled = false;
         private string _audioSource = "Audio Playback";
         private bool _autoReconnectEnabled = false;
@@ -49,6 +48,7 @@ namespace ScrcpyController.Core
             set { _bitrate = value; OnPropertyChanged(); }
         }
 
+        private int _framerate = 60;
         [JsonProperty("framerate")]
         public int Framerate
         {

@@ -27,8 +27,8 @@ namespace ScrcpyController.Core
             string scrcpyPath = ScrcpyPathResolver.FindScrcpyExecutable();
             var cmd = new List<string> { scrcpyPath, "-s", DeviceId, "-b", Bitrate };
 
-            // Add framerate
-            cmd.AddRange(new[] { "--max-fps", Framerate.ToString() });
+                // Add framerate
+                cmd.AddRange(new[] { "--max-fps", Framerate.ToString() });
 
             // Add video resolution
             if (VideoResolution != "Original Device Resolution")
@@ -318,6 +318,27 @@ namespace ScrcpyController.Core
                     _status = ProcessStatus.Running;
 
                     // Start monitoring in background
+                    // Ensure we consume stdout/stderr to avoid process blocking when buffers fill
+                    try
+                    {
+                        _process.EnableRaisingEvents = true;
+                        _process.OutputDataReceived += (s, e) => {
+                            if (!string.IsNullOrEmpty(e.Data))
+                                Debug.WriteLine($"[scrcpy stdout] {e.Data}");
+                        };
+                        _process.ErrorDataReceived += (s, e) => {
+                            if (!string.IsNullOrEmpty(e.Data))
+                                Debug.WriteLine($"[scrcpy stderr] {e.Data}");
+                        };
+
+                        try { _process.BeginOutputReadLine(); } catch { }
+                        try { _process.BeginErrorReadLine(); } catch { }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error setting up output readers: {ex.Message}");
+                    }
+
                     _monitorCancellation = new CancellationTokenSource();
                     _ = Task.Run(() => MonitorProcess(_monitorCancellation.Token));
 
