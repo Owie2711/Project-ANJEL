@@ -6,6 +6,7 @@ namespace ScrcpyController.UI
     /// <summary>
     /// Main application form
     /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public partial class MainForm : Form, IProcessEventListener, IDeviceConnectionListener, IDisposable
     {
         // Save all current config from UI to config.json
@@ -16,16 +17,6 @@ namespace ScrcpyController.UI
             // Device selection
             if (_deviceComboBox?.SelectedItem != null)
                 _configManager.Set("LastSelectedDevice", _deviceComboBox.SelectedItem.ToString());
-
-            // Port
-            var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
-            if (portTextBox != null)
-                _configManager.Set("Port", portTextBox.Text);
-
-            // IP
-            var ipTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "IpTextBox");
-            if (ipTextBox != null)
-                _configManager.Set("DeviceIpAddress", ipTextBox.Text);
 
             // Video settings
             if (_bitrateTextBox != null)
@@ -39,7 +30,7 @@ namespace ScrcpyController.UI
             if (_fullscreenCheckBox != null)
                 _configManager.Set("FullscreenEnabled", _fullscreenCheckBox.Checked);
             if (_noControlCheckBox != null)
-                _configManager.Set("NoControlEnabled", _noControlCheckBox.Checked);
+                _configManager.Set("NoControlEnabled", !_noControlCheckBox.Checked);
             if (_resolutionComboBox?.SelectedItem != null)
                 _configManager.Set("VideoResolution", _resolutionComboBox.SelectedItem.ToString());
 
@@ -53,84 +44,19 @@ namespace ScrcpyController.UI
             // Save to file
             _configManager.SaveConfig();
         }
-        // Event handler untuk tombol Connect
-        private void ConnectButton_Click(object? sender, EventArgs e)
+
+        // Event handler untuk tombol Pair
+        private void PairButton_Click(object? sender, EventArgs e)
         {
-            // Cari TextBox IP dan port
-            var ipTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "IpTextBox");
-            var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
-            if (ipTextBox == null || portTextBox == null)
+            if (_configManager == null) return;
+            using (var dialog = new AdbPairDialog(_configManager.Config))
             {
-                MessageBox.Show("IP address or port input not found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            string ip = ipTextBox.Text.Trim();
-            string portStr = portTextBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(ip))
-            {
-                MessageBox.Show("Please enter a valid IP address.", "Invalid IP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (!int.TryParse(portStr, out int port) || port < 1 || port > 65535)
-            {
-                MessageBox.Show("Invalid port number. Please enter a value between 1 and 65535.", "Invalid Port", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // Jalankan perintah adb connect ip:port
-            try
-            {
-                var process = new System.Diagnostics.Process();
-                process.StartInfo.FileName = "adb";
-                process.StartInfo.Arguments = $"connect {ip}:{port}";
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.CreateNoWindow = true;
-                process.Start();
-
-                bool exited = process.WaitForExit(5000); // 5 seconds timeout
-                string output = string.Empty;
-                string error = string.Empty;
-                if (exited)
-                {
-                    try
-                    {
-                        output = process.StandardOutput.ReadToEnd();
-                        error = process.StandardError.ReadToEnd();
-                    }
-                    catch (Exception ioex)
-                    {
-                        MessageBox.Show($"Failed to read adb output: {ioex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
-                    }
-
-                    if (process.ExitCode == 0)
-                    {
-                        MessageBox.Show($"ADB connect to {ip}:{port} success.\n{output}", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Failed to connect to device.\n{error}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-                else
-                {
-                    try { process.Kill(); }
-                    catch (Exception killEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[ERROR] Gagal kill process: {killEx.Message}");
-                        MessageBox.Show($"Gagal menghentikan proses adb: {killEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    MessageBox.Show($"Connection to {ip}:{port} timed out after 5 seconds.", "Connection Timeout", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error running adb: {ex.Message}", "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                dialog.ShowDialog(this);
             }
         }
+
+
+
         private readonly ConfigManager _configManager;
         private readonly DeviceManager _deviceManager;
         private readonly ProcessManager _processManager;
@@ -150,64 +76,17 @@ namespace ScrcpyController.UI
         private Label _framerateLabel = null!;
         private TextBox _framerateTextBox = null!;
         
-            // Event handler untuk tombol Set port number
-            private void SetPortButton_Click(object? sender, EventArgs e)
-            {
-                // Cari TextBox port
-                var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
-                if (portTextBox == null)
-                {
-                    MessageBox.Show("Port number input not found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
 
-                string portStr = portTextBox.Text.Trim();
-                if (!int.TryParse(portStr, out int port) || port < 1 || port > 65535)
-                {
-                    MessageBox.Show("Invalid port number. Please enter a value between 1 and 65535.", "Invalid Port", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Jalankan perintah adb tcpip <port>
-                try
-                {
-                    var process = new System.Diagnostics.Process();
-                    process.StartInfo.FileName = "adb";
-                    process.StartInfo.Arguments = $"tcpip {port}";
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.RedirectStandardOutput = true;
-                    process.StartInfo.RedirectStandardError = true;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.Start();
-                    string output = process.StandardOutput.ReadToEnd();
-                    string error = process.StandardError.ReadToEnd();
-                    process.WaitForExit();
-
-                    if (process.ExitCode == 0)
-                    {
-                        MessageBox.Show($"ADB TCP/IP set to port {port}.\n{output}", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Failed to set ADB TCP/IP.\n{error}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error running adb: {ex.Message}", "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
         
         private CheckBox _fullscreenCheckBox = null!;
         private CheckBox _autoReconnectCheckBox = null!;
         private CheckBox _noControlCheckBox = null!;
-        private Label _resolutionLabel = null!;
         private ComboBox _resolutionComboBox = null!;
 
         private GroupBox _audioGroupBox = null!;
         private ComboBox _audioComboBox = null!;
 
-        private GroupBox _controlGroupBox = null!;
+        private Panel _controlGroupBox = null!;
         private Button _startStopButton = null!;
         private Label _statusLabel = null!;
 
@@ -243,11 +122,14 @@ namespace ScrcpyController.UI
 
             // Form settings
             Text = "Scrcpy Controller";
-            Size = new Size(400, 793); // 610 + 30% = 793
+            Size = new Size(400, 793);
             MinimumSize = new Size(400, 793);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
+            BackColor = Color.FromArgb(241, 243, 244);
+            ForeColor = Color.FromArgb(32, 33, 36);
+            Font = new Font("Segoe UI", 9);
             Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             // The icon is already set by the ApplicationIcon property in the project file
@@ -271,9 +153,10 @@ namespace ScrcpyController.UI
             _deviceGroupBox = new GroupBox
             {
                 Text = "Device Selection",
-                Location = new Point(20, 15), // Center horizontally with more margin
-                Size = new Size(340, 170), // Slightly narrower and taller for balance
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Location = new Point(20, 15),
+                Size = new Size(340, 170),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                ForeColor = Color.FromArgb(25, 103, 210) // Darker Google Blue for better contrast
             };
 
             _deviceComboBox = new ComboBox
@@ -282,7 +165,10 @@ namespace ScrcpyController.UI
                 Size = new Size(200, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                DrawMode = DrawMode.OwnerDrawFixed
+                DrawMode = DrawMode.OwnerDrawFixed,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36),
+                FlatStyle = FlatStyle.Flat
             };
             _deviceComboBox.DrawItem += ComboBox_DrawItem;
             _deviceComboBox.SelectedIndexChanged += DeviceComboBox_SelectedIndexChanged;
@@ -292,8 +178,13 @@ namespace ScrcpyController.UI
                 Text = "Refresh",
                 Location = new Point(230, 25),
                 Size = new Size(90, 25),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36),
+                FlatStyle = FlatStyle.Flat
             };
+            _refreshButton.FlatAppearance.BorderSize = 1;
+            _refreshButton.FlatAppearance.BorderColor = Color.FromArgb(32, 33, 36);
             _refreshButton.Click += RefreshButton_Click;
 
             _deviceStatusLabel = new Label
@@ -301,88 +192,38 @@ namespace ScrcpyController.UI
                 Text = "Scanning for devices...",
                 Location = new Point(10, 60), // Move lower for visibility
                 Size = new Size(320, 32), // Increase height and width for longer messages
-                ForeColor = Color.Red,
+                ForeColor = Color.FromArgb(217, 48, 37), // Google Red for errors
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize = false
             };
 
             // Wireless Debugging Section
-            // Layout agar rata tengah dan rapi
-            int portRowY = 100; // Move port row lower for more space
             int groupWidth = _deviceGroupBox.Size.Width;
-            int labelWidth = 110;
-            int textWidth = (int)(70 * 1.2 * 1.2); // increase input width by additional 20% (total ~44%)
-            int buttonWidth = 110;
-            int spacing = 8;
-            int totalWidth = labelWidth + spacing + textWidth + spacing + buttonWidth;
-            int startX = (_deviceGroupBox.Size.Width - totalWidth) / 2;
 
-            var portLabel = new Label
-            {
-                Text = "ADB TCP/IP Port:",
-                Location = new Point(startX, portRowY),
-                Size = new Size(labelWidth, 23),
-                TextAlign = ContentAlignment.MiddleRight
+            // Row 1: Pair Button (Main)
+            int row1Y = 100;
+            int pButtonWidth = (int)(150 * 1.5);
+            var pairMainButton = new Button 
+            { 
+                Text = "🔗 Pair ADB Wireless", 
+                Location = new Point((groupWidth - pButtonWidth) / 2, row1Y), 
+                Size = new Size(pButtonWidth, 35),
+                BackColor = Color.FromArgb(26, 115, 232),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
             };
-
-            var portTextBox = new TextBox
-            {
-                Name = "PortTextBox",
-                Location = new Point(startX + labelWidth + spacing, portRowY),
-                Size = new Size(textWidth, 23),
-                Text = "5037",
-                TextAlign = HorizontalAlignment.Center
-            };
-            portTextBox.TextChanged += (s, e) => {
-                if (_configManager != null)
-                    _configManager.Config.PortNumber = portTextBox.Text;
-            };
-
-            var setPortButton = new Button
-            {
-                Text = "Set port number",
-                Location = new Point(startX + labelWidth + spacing + textWidth + spacing, portRowY),
-                Size = new Size(buttonWidth, 23)
-            };
-            setPortButton.Click += SetPortButton_Click;
+            pairMainButton.FlatAppearance.BorderSize = 0;
+            pairMainButton.Click += PairButton_Click;
 
             _deviceGroupBox.Controls.AddRange(new Control[] {
                 _deviceComboBox, _refreshButton, _deviceStatusLabel,
-                portLabel, portTextBox, setPortButton
+                pairMainButton
             });
-            // IP Address and Connect Button Section
-            int ipRowY = portRowY + 40; // Increase vertical gap between port and IP rows
-            var ipLabel = new Label
-            {
-                Text = "Device IP Address:",
-                Location = new Point(startX, ipRowY),
-                Size = new Size(labelWidth, 23),
-                TextAlign = ContentAlignment.MiddleRight
-            };
 
-            var ipTextBox = new TextBox
-            {
-                Name = "IpTextBox",
-                Location = new Point(startX + labelWidth + spacing, ipRowY),
-                Size = new Size(textWidth, 23),
-                Text = "192.168.1.100",
-                TextAlign = HorizontalAlignment.Center
-            };
-            ipTextBox.TextChanged += (s, e) => {
-                if (_configManager != null)
-                    _configManager.Config.DeviceIpAddress = ipTextBox.Text;
-            };
+            // Adjust GroupBox size
+            _deviceGroupBox.Size = new Size(340, 160);
 
-            var connectButton = new Button
-            {
-                Text = "Connect",
-                Location = new Point(startX + labelWidth + spacing + textWidth + spacing, ipRowY),
-                Size = new Size(buttonWidth, 23)
-            };
-            connectButton.Click += ConnectButton_Click;
-
-            _deviceGroupBox.Controls.AddRange(new Control[] { ipLabel, ipTextBox, connectButton });
             Controls.Add(_deviceGroupBox);
         }
 
@@ -391,9 +232,10 @@ namespace ScrcpyController.UI
             _videoGroupBox = new GroupBox
             {
                 Text = "Video Settings",
-                Location = new Point(20, 200), // Center horizontally below device section
-                Size = new Size(340, 300), // Increased height to fit labels above inputs and checkboxes
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Location = new Point(20, 190), // Fixed Y for consistent spacing (175 + 15)
+                Size = new Size(340, 300),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                ForeColor = Color.FromArgb(25, 103, 210) // Darker Google Blue for better contrast
             };
 
             // Resolution section (combo only; label removed)
@@ -403,10 +245,13 @@ namespace ScrcpyController.UI
             // Center the resolution combo box within the group (group width = 340)
             _resolutionComboBox = new ComboBox
             {
-                Location = new Point(65, marginTop), // centered: (340 - 210) / 2 = 65
+                Location = new Point(65, marginTop),
                 Size = new Size(210, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                DrawMode = DrawMode.OwnerDrawFixed
+                DrawMode = DrawMode.OwnerDrawFixed,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36),
+                FlatStyle = FlatStyle.Flat
             };
 
             // Bitrate and Max FPS on the same row, with labels above inputs, centered within group
@@ -427,7 +272,8 @@ namespace ScrcpyController.UI
                 Location = new Point(bitrateLabelX, bitrateRowY),
                 Size = new Size(bitrateLabelWidth, labelHeight),
                 TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 9, FontStyle.Regular)
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(60, 64, 67)
             };
 
             _bitrateTextBox = new TextBox
@@ -437,7 +283,9 @@ namespace ScrcpyController.UI
                 Text = "20",
                 TextAlign = HorizontalAlignment.Center,
                 BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 9)
+                Font = new Font("Segoe UI", 9),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36)
             };
             _bitrateTextBox.TextChanged += BitrateTextBox_TextChanged;
 
@@ -449,17 +297,19 @@ namespace ScrcpyController.UI
                 Location = new Point(startX + inputWidth + spacingX - (inputWidth / 4), bitrateRowY),
                 Size = new Size(inputWidth + (inputWidth / 2), labelHeight),
                 TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 9, FontStyle.Regular)
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(60, 64, 67)
             };
-
             _framerateTextBox = new TextBox
             {
                 Location = new Point(startX + inputWidth + spacingX + (inputWidth / 8), inputY),
                 Size = new Size(inputWidth, 26),
-                Text = "60",
+                Text = "0",
                 TextAlign = HorizontalAlignment.Center,
                 BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 9)
+                Font = new Font("Segoe UI", 9),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36)
             };
             _framerateTextBox.KeyPress += FramerateTextBox_KeyPress;
             _framerateTextBox.Leave += FramerateTextBox_Leave;
@@ -478,7 +328,8 @@ namespace ScrcpyController.UI
             {
                 Text = "Fullscreen Mode",
                 Location = new Point(checkboxX, checkboxY),
-                Size = new Size(checkboxWidth, 20)
+                Size = new Size(checkboxWidth, 20),
+                ForeColor = Color.FromArgb(32, 33, 36)
             };
             _fullscreenCheckBox.CheckedChanged += FullscreenCheckBox_CheckedChanged;
 
@@ -486,15 +337,17 @@ namespace ScrcpyController.UI
             {
                 Text = "Auto Reconnect",
                 Location = new Point(checkboxX, checkboxY + checkboxSpacingY),
-                Size = new Size(checkboxWidth, 20)
+                Size = new Size(checkboxWidth, 20),
+                ForeColor = Color.FromArgb(32, 33, 36)
             };
             _autoReconnectCheckBox.CheckedChanged += AutoReconnectCheckBox_CheckedChanged;
 
             _noControlCheckBox = new CheckBox
             {
-                Text = "Disable Control",
+                Text = "Control",
                 Location = new Point(checkboxX, checkboxY + checkboxSpacingY * 2),
-                Size = new Size(checkboxWidth, 20)
+                Size = new Size(checkboxWidth, 20),
+                ForeColor = Color.FromArgb(32, 33, 36)
             };
             _noControlCheckBox.CheckedChanged += NoControlCheckBox_CheckedChanged;
 
@@ -513,26 +366,31 @@ namespace ScrcpyController.UI
             _audioGroupBox = new GroupBox
             {
                 Text = "Audio Settings",
-                Location = new Point(20, _videoGroupBox.Location.Y + _videoGroupBox.Size.Height + 10), // place directly below video section
+                Location = new Point(20, _videoGroupBox.Location.Y + _videoGroupBox.Size.Height + 15), // Consistent 15px spacing
                 Size = new Size(340, 80),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                ForeColor = Color.FromArgb(25, 103, 210) // Darker Google Blue for better contrast
             };
 
             var audioLabel = new Label
             {
                 Text = "Audio Source",
-                Location = new Point(130, 15), // Centered horizontally (360/2 - 100/2 = 130)
+                Location = new Point(130, 15),
                 Size = new Size(100, 20),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Color.FromArgb(60, 64, 67)
             };
 
             _audioComboBox = new ComboBox
             {
-                Location = new Point(80, 40), // Centered below the label
+                Location = new Point(80, 40),
                 Size = new Size(200, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                DrawMode = DrawMode.OwnerDrawFixed
+                DrawMode = DrawMode.OwnerDrawFixed,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36),
+                FlatStyle = FlatStyle.Flat
             };
             _audioComboBox.Items.AddRange(new[] { "Audio Playback", "Audio Playback Duplication", "Microphone", "No audio" });
             _audioComboBox.SelectedIndex = 0;
@@ -545,10 +403,9 @@ namespace ScrcpyController.UI
 
         private void CreateControlSection()
         {
-            _controlGroupBox = new GroupBox
+            _controlGroupBox = new Panel
             {
-                Text = "",
-                Location = new Point(20, _audioGroupBox.Location.Y + _audioGroupBox.Size.Height + 10), // place below audio section
+                Location = new Point(20, _audioGroupBox.Location.Y + _audioGroupBox.Size.Height + 15), // Consistent 15px spacing
                 Size = new Size(340, 120),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -556,24 +413,28 @@ namespace ScrcpyController.UI
             _startStopButton = new Button
             {
                 Text = "Start Mirror",
-                Location = new Point(10, 25),
-                Size = new Size(340, 60),
-                BackColor = Color.FromArgb(37, 99, 235),
+                Location = new Point(10, 20),
+                Size = new Size(320, 60),
+                BackColor = Color.FromArgb(26, 115, 232),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Cursor = Cursors.Hand
             };
             _startStopButton.FlatAppearance.BorderSize = 0;
+            _startStopButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 101, 216);
+            _startStopButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(18, 89, 190);
             _startStopButton.Click += StartStopButton_Click;
 
             _statusLabel = new Label
             {
                 Text = "Ready to start mirroring",
                 Location = new Point(10, 85),
-                Size = new Size(340, 30),
+                Size = new Size(320, 30),
                 TextAlign = ContentAlignment.MiddleCenter,
-                ForeColor = Color.Black,
+                ForeColor = Color.FromArgb(60, 64, 67), // Dark gray for better visibility
+                Font = new Font("Segoe UI", 9, FontStyle.Italic),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -600,11 +461,6 @@ namespace ScrcpyController.UI
                     return;
                 }
 
-                // Load port number from config
-                var portTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "PortTextBox");
-                if (portTextBox != null)
-                    portTextBox.Text = config.PortNumber ?? "5037";
-
                 // Load UI from configuration with null checks
                 if (_bitrateTextBox != null)
                     _bitrateTextBox.Text = config.Bitrate ?? "20";
@@ -619,7 +475,7 @@ namespace ScrcpyController.UI
                     _autoReconnectCheckBox.Checked = config.AutoReconnectEnabled;
 
                 if (_noControlCheckBox != null)
-                    _noControlCheckBox.Checked = config.NoControlEnabled;
+                    _noControlCheckBox.Checked = !config.NoControlEnabled;
 
                 if (_resolutionComboBox != null)
                 {
@@ -661,10 +517,7 @@ namespace ScrcpyController.UI
                     _lastConnectedDevice = config.LastSelectedDevice;
                 }
 
-                // Load IP address from config
-                var ipTextBox = _deviceGroupBox.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "IpTextBox");
-                if (ipTextBox != null)
-                    ipTextBox.Text = config.DeviceIpAddress ?? "192.168.1.100";
+
 
                 RefreshDevices();
             }
@@ -1019,7 +872,7 @@ namespace ScrcpyController.UI
             {
                 if (_configManager != null && _noControlCheckBox != null)
                 {
-                    _configManager.Set("NoControlEnabled", _noControlCheckBox.Checked);
+                    _configManager.Set("NoControlEnabled", !_noControlCheckBox.Checked);
                 }
             }
             catch (Exception ex)
@@ -1073,15 +926,32 @@ namespace ScrcpyController.UI
 
         private void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
         {
+            if (e.Index < 0) return;
             if (sender is ComboBox comboBox)
             {
-                e.DrawBackground();
-                
-                if (e.Index >= 0 && e.Index < comboBox.Items.Count)
+                Color backColor = (e.State & DrawItemState.Selected) == DrawItemState.Selected 
+                    ? Color.FromArgb(26, 115, 232) 
+                    : Color.White;
+                Color foreColor = (e.State & DrawItemState.Selected) == DrawItemState.Selected 
+                    ? Color.White 
+                    : Color.FromArgb(32, 33, 36);
+
+                using (var brush = new SolidBrush(backColor))
                 {
-                    string text = comboBox.Items[e.Index]?.ToString() ?? string.Empty;
-                    TextRenderer.DrawText(e.Graphics, text, e.Font, e.Bounds, e.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    e.Graphics.FillRectangle(brush, e.Bounds);
                 }
+
+                // Draw a subtle border around items to make them visible on light theme
+                using (var pen = new Pen(Color.FromArgb(218, 220, 224))) // Light border color
+                {
+                    var borderRect = e.Bounds;
+                    borderRect.Width -= 1;
+                    borderRect.Height -= 1;
+                    e.Graphics.DrawRectangle(pen, borderRect);
+                }
+                
+                string text = comboBox.Items[e.Index]?.ToString() ?? string.Empty;
+                TextRenderer.DrawText(e.Graphics, text, e.Font, e.Bounds, foreColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                 
                 e.DrawFocusRectangle();
             }
@@ -1138,7 +1008,7 @@ namespace ScrcpyController.UI
                     Bitrate = $"{_bitrateTextBox.Text}M",
                     Framerate = (int.TryParse(_framerateTextBox?.Text, out var __f1) ? Math.Max(1, Math.Min(240, __f1)) : 60),
                     Fullscreen = _fullscreenCheckBox.Checked,
-                    NoControl = _noControlCheckBox.Checked,
+                    NoControl = !_noControlCheckBox.Checked,
                     VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
                     AudioSource = audioSourceInternal
                 };
@@ -1185,7 +1055,7 @@ namespace ScrcpyController.UI
                             Bitrate = $"{_bitrateTextBox.Text}M",
                             Framerate = (int.TryParse(_framerateTextBox?.Text, out var __f2) ? Math.Max(1, Math.Min(240, __f2)) : 60),
                             Fullscreen = _fullscreenCheckBox.Checked,
-                            NoControl = _noControlCheckBox.Checked,
+                            NoControl = !_noControlCheckBox.Checked,
                             VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
                             AudioSource = audioSourceInternal
                         };
@@ -1223,7 +1093,7 @@ namespace ScrcpyController.UI
                             Bitrate = $"{_bitrateTextBox.Text}M",
                             Framerate = (int.TryParse(_framerateTextBox?.Text, out var __f3) ? Math.Max(1, Math.Min(240, __f3)) : 60),
                             Fullscreen = _fullscreenCheckBox.Checked,
-                            NoControl = _noControlCheckBox.Checked,
+                            NoControl = !_noControlCheckBox.Checked,
                             VideoResolution = _resolutionComboBox?.SelectedItem?.ToString() ?? "Original Device Resolution",
                             AudioSource = audioSourceInternal
                         };
@@ -1568,7 +1438,6 @@ namespace ScrcpyController.UI
                     _framerateTextBox?.Dispose();
                     _fullscreenCheckBox?.Dispose();
                     _autoReconnectCheckBox?.Dispose();
-                    _resolutionLabel?.Dispose();
                     _resolutionComboBox?.Dispose();
                     _audioGroupBox?.Dispose();
                     _audioComboBox?.Dispose();

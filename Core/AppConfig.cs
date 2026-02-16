@@ -8,21 +8,6 @@ namespace ScrcpyController.Core
     /// </summary>
     public class AppConfig : INotifyPropertyChanged
     {
-        private string _portNumber = "5037";
-        [JsonProperty("port_number")]
-        public string PortNumber
-        {
-            get => _portNumber;
-            set { _portNumber = value; OnPropertyChanged(); }
-        }
-
-        private string _deviceIpAddress = "192.168.1.100";
-        [JsonProperty("device_ip_address")]
-        public string DeviceIpAddress
-        {
-            get => _deviceIpAddress;
-            set { _deviceIpAddress = value; OnPropertyChanged(); }
-        }
         private string _bitrate = "20";
         private bool _fullscreenEnabled = false;
         private string _audioSource = "Audio Playback";
@@ -33,9 +18,6 @@ namespace ScrcpyController.Core
         private int _reconnectMaxAttempts = 0; // 0 = unlimited
         private double _reconnectDelay = 3.0;
         private bool _skipProcessCheck = true; // Skip scrcpy process detection (enabled by default)
-        private int _windowWidth = 400;
-        private int _windowHeight = 600;
-        private string _theme = "light";
         private string _lastSelectedDevice = "";
         private double _deviceRefreshInterval = 3.0;
         private List<string> _additionalScrcpyArgs = new();
@@ -121,28 +103,6 @@ namespace ScrcpyController.Core
         {
             get => _skipProcessCheck;
             set { _skipProcessCheck = value; OnPropertyChanged(); }
-        }
-
-        // UI settings
-        [JsonProperty("window_width")]
-        public int WindowWidth
-        {
-            get => _windowWidth;
-            set { _windowWidth = value; OnPropertyChanged(); }
-        }
-
-        [JsonProperty("window_height")]
-        public int WindowHeight
-        {
-            get => _windowHeight;
-            set { _windowHeight = value; OnPropertyChanged(); }
-        }
-
-        [JsonProperty("theme")]
-        public string Theme
-        {
-            get => _theme;
-            set { _theme = value; OnPropertyChanged(); }
         }
 
         // Device settings

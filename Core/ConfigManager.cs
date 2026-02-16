@@ -69,29 +69,22 @@ namespace ScrcpyController.Core
             _validators["AudioSource"] = new ChoiceValidator<string>(new[] { "Audio Playback", "Microphone", "No audio" });
             _validators["ReconnectMaxAttempts"] = new RangeValidator<int>(0, 100);
             _validators["ReconnectDelay"] = new RangeValidator<double>(0.1, 60.0);
-            _validators["WindowWidth"] = new RangeValidator<int>(300, 2000);
-            _validators["WindowHeight"] = new RangeValidator<int>(400, 1500);
             _validators["DeviceRefreshInterval"] = new RangeValidator<double>(0.5, 30.0);
         }
 
         public string GetConfigPath()
         {
-            // Prefer per-user application data folder to avoid permission issues
             try
             {
-                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                string baseDir = Path.Combine(appData, "ScrcpyController");
-                if (!Directory.Exists(baseDir))
-                {
-                    Directory.CreateDirectory(baseDir);
-                }
-
-                return Path.Combine(baseDir, _configFileName);
+                // Save config in the same directory as the executable
+                string appDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) 
+                                ?? AppContext.BaseDirectory;
+                return Path.Combine(appDir, _configFileName);
             }
             catch
             {
-                // Fallback to current directory if AppData is unavailable
-                return Path.Combine(Environment.CurrentDirectory, _configFileName);
+                // Fallback to relative path if directory detection fails
+                return _configFileName;
             }
         }
 

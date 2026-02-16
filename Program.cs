@@ -6,6 +6,7 @@ using System.Threading;
 
 namespace ScrcpyController
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     internal static class Program
     {
         /// <summary>

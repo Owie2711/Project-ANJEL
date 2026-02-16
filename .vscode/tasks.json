@@ -1,0 +1,47 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/ScrcpyController.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Run App",
+            "type": "process",
+            "command": "${workspaceFolder}/bin/Debug/net8.0-windows/ScrcpyController.exe",
+            "dependsOn": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Publish Release (Single File)",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "publish",
+                "${workspaceFolder}/ScrcpyController.csproj",
+                "-c",
+                "Release",
+                "-r",
+                "win-x64",
+                "--self-contained",
+                "true",
+                "-p:PublishSingleFile=true",
+                "-p:PublishReadyToRun=true",
+                "-p:IncludeNativeLibrariesForSelfExtract=true"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

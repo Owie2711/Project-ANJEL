@@ -62,6 +62,29 @@ namespace ScrcpyController.Core
 
         public static string FindAdbExecutable()
         {
+            // Try to get configured path from AppConfig
+            try
+            {
+                var configManager = new ConfigManager();
+                if (configManager.LoadConfig())
+                {
+                    string configuredPath = configManager.Config.ScrcpyPath;
+                    if (!string.IsNullOrWhiteSpace(configuredPath))
+                    {
+                        string adbExePath = Path.Combine(configuredPath, "adb.exe");
+                        if (File.Exists(adbExePath))
+                        {
+                            Debug.WriteLine($"Using configured ADB at: {adbExePath}");
+                            return adbExePath;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading configured ADB path: {ex.Message}");
+            }
+
             string appDir = GetApplicationDirectory();
             
             // Check for ADB in the same directory as the application

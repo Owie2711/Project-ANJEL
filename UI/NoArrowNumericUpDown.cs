@@ -6,6 +6,7 @@ using System.Windows.Forms;
 
 namespace ScrcpyController.UI
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public class NoArrowNumericUpDown : NumericUpDown
     {
         protected override void OnHandleCreated(EventArgs e)

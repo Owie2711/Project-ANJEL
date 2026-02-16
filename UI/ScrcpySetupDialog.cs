@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace ScrcpyController.UI
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public partial class ScrcpySetupDialog : Form
     {
         private ScrcpyValidator _validator = null!;
@@ -16,7 +17,7 @@ namespace ScrcpyController.UI
         private Label _statusLabel = null!;
         private ProgressBar _loadingBar = null!;
         private System.Windows.Forms.Timer _loadingTimer = null!;
-        private int _loadingProgress;
+        private int _loadingProgress; // Consider removing if truly unused, but keeping for now as it's harmless or might be used later for non-marquee style
 
         public string SelectedPath { get; private set; } = "";
 
@@ -35,12 +36,15 @@ namespace ScrcpyController.UI
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             MinimizeBox = false;
+            this.BackColor = Color.FromArgb(241, 243, 244);
+            this.ForeColor = Color.FromArgb(32, 33, 36);
+            Font = new Font("Segoe UI", 9);
 
             // Create controls
             CreateControls();
 
             // Layout controls
-            LayoutControls();
+            // LayoutControls(); // Method is empty
         }
 
         private void CreateControls()
@@ -50,16 +54,20 @@ namespace ScrcpyController.UI
             {
                 Text = "Please select the Scrcpy installation directory:",
                 Location = new Point(20, 20),
-                Size = new Size(400, 20),
-                Font = new Font(Font.FontFamily, 10, FontStyle.Bold)
+                Size = new Size(400, 24),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(25, 103, 210) // Darker blue #1967D2
             };
 
             // Path text box
             _pathTextBox = new TextBox
             {
                 Location = new Point(20, 50),
-                Size = new Size(350, 23),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Size = new Size(350, 25),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36),
+                BorderStyle = BorderStyle.FixedSingle
             };
             _pathTextBox.TextChanged += PathTextBox_TextChanged;
 
@@ -68,9 +76,14 @@ namespace ScrcpyController.UI
             {
                 Text = "Browse...",
                 Location = new Point(380, 50),
-                Size = new Size(80, 23),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Size = new Size(80, 25),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36),
+                FlatStyle = FlatStyle.Flat
             };
+            _browseButton.FlatAppearance.BorderSize = 1;
+            _browseButton.FlatAppearance.BorderColor = Color.FromArgb(32, 33, 36);
             _browseButton.Click += BrowseButton_Click;
 
             // Status label
@@ -79,7 +92,8 @@ namespace ScrcpyController.UI
                 Text = "Please locate your Scrcpy installation folder.",
                 Location = new Point(20, 90),
                 Size = new Size(440, 40),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                ForeColor = Color.FromArgb(32, 33, 36)
             };
 
             // Loading bar (initially hidden)
@@ -98,8 +112,12 @@ namespace ScrcpyController.UI
                 Text = "OK",
                 Location = new Point(300, 150),
                 Size = new Size(80, 30),
-                Enabled = false
+                Enabled = false,
+                BackColor = Color.FromArgb(25, 103, 210),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
             };
+            _okButton.FlatAppearance.BorderSize = 0;
             _okButton.Click += OkButton_Click;
 
             // Cancel button
@@ -107,8 +125,13 @@ namespace ScrcpyController.UI
             {
                 Text = "Cancel",
                 Location = new Point(390, 150),
-                Size = new Size(80, 30)
+                Size = new Size(80, 30),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(32, 33, 36),
+                FlatStyle = FlatStyle.Flat
             };
+            _cancelButton.FlatAppearance.BorderSize = 1;
+            _cancelButton.FlatAppearance.BorderColor = Color.FromArgb(32, 33, 36);
             _cancelButton.Click += CancelButton_Click;
 
             // Add controls to form
@@ -127,11 +150,6 @@ namespace ScrcpyController.UI
             _loadingTimer = new System.Windows.Forms.Timer();
             _loadingTimer.Interval = 50;
             _loadingTimer.Tick += LoadingTimer_Tick;
-        }
-
-        private void LayoutControls()
-        {
-            // All controls are positioned in CreateControls method
         }
 
         private void PathTextBox_TextChanged(object? sender, EventArgs e)
@@ -186,7 +204,7 @@ namespace ScrcpyController.UI
                 System.Diagnostics.Debug.WriteLine($"Error during Scrcpy path validation: {ex.Message}");
                 validationResult = new ScrcpyValidationResult { IsValid = false, MissingFiles = new() { "Validation error" } };
                 _statusLabel.Text = $"An error occurred during validation: {ex.Message}";
-                _statusLabel.ForeColor = Color.Red;
+                _statusLabel.ForeColor = Color.FromArgb(217, 48, 37);
                 _okButton.Enabled = false;
                 HideLoadingIndicator();
                 return;
@@ -199,26 +217,26 @@ namespace ScrcpyController.UI
             if (validationResult.IsValid)
             {
                 _statusLabel.Text = "Valid Scrcpy installation found!";
-                _statusLabel.ForeColor = Color.Green;
+                _statusLabel.ForeColor = Color.FromArgb(24, 128, 56);
                 _okButton.Enabled = true;
             }
             else if (string.IsNullOrWhiteSpace(path))
             {
                 _statusLabel.Text = "Please locate your Scrcpy installation folder.";
-                _statusLabel.ForeColor = SystemColors.ControlText;
+                _statusLabel.ForeColor = Color.FromArgb(32, 33, 36);
                 _okButton.Enabled = false;
             }
             else if (validationResult.MissingFiles.Contains("Directory does not exist")) // Rely on validator for directory existence
             {
                 _statusLabel.Text = "Directory does not exist.";
-                _statusLabel.ForeColor = Color.Red;
+                _statusLabel.ForeColor = Color.FromArgb(217, 48, 37);
                 _okButton.Enabled = false;
             }
             else
             {
                 string missingFiles = string.Join(", ", validationResult.MissingFiles);
                 _statusLabel.Text = $"Missing files: {missingFiles}";
-                _statusLabel.ForeColor = Color.Red;
+                _statusLabel.ForeColor = Color.FromArgb(217, 48, 37);
                 _okButton.Enabled = false;
             }
         }
