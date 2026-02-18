@@ -34,7 +34,13 @@
 ---
 
 ## 📸 User Interface
-*(Placeholder for application screenshot)*
+
+### Main Dashboard
+![Main Interface](Screenshoots/1.png)
+
+### ADB Wireless Pairing
+![Wireless Pairing](Screenshoots/2.png)
+
 > Tip: This app utilizes custom UI components like `NoArrowNumericUpDown` and `Custom Draw ComboBox` for a cleaner, modern look.
 
 ---
